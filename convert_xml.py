@@ -4,7 +4,7 @@ import xml.etree.ElementTree as ET
 import argparse
 import os
 
-from colors import colors
+from colors import colors_by_id
 
 def parse_xml(path):
     tree = ET.parse(path)
