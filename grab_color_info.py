@@ -1,6 +1,8 @@
 import sys
 import requests
 from bs4 import BeautifulSoup
+from collections import defaultdict
+
 
 import shelve
 def shelve_it(file_name):
@@ -14,24 +16,26 @@ def shelve_it(file_name):
         return new_func
     return decorator
 
+def url_for_part_catalog_colors(design_id):
+    return f"https://www.bricklink.com/catalogColors.asp?itemType=P&itemNo={design_id}"
 
-# @shelve_it('webpage_cache.shelve')
+
+@shelve_it('webpage_cache.shelve')
 def get_webpage_for_part(design_id):
     try:
-        url = f"https://www.bricklink.com/catalogColors.asp?itemType=P&itemNo={design_id}"
+        url = url_for_part_catalog_colors(design_id)
         print(f"Fetching {url}...")
         response = requests.get(url, headers={"User-Agent": "Mozilla/5.0", "accept-language": "en-US,en"})
         response.raise_for_status()  # Raise an HTTPError for bad responses (4xx and 5xx)
-        print(response.content)
         return response.content
     except requests.exceptions.HTTPError as http_err:
         print(f"HTTP error occurred: {http_err}")
         print(f"Error code: {response.status_code}")
         print(f"Error data: {response.text}")
-        return
+        raise http_err
     except Exception as err:
         print(f"Other error occurred: {err}")
-        return
+        raise err
 
 
 def main():
@@ -42,29 +46,37 @@ def main():
     number = sys.argv[1]
     response_content = get_webpage_for_part(number)
 
-    # print(response_content)
+    soup = BeautifulSoup(response_content, 'lxml')
 
-    soup = BeautifulSoup(response_content, 'html.parser')
-    tables = soup.find_all('table')
+    tables = soup.select('center > table')
 
-    print(f"Number of tables found: {len(tables)}")
+    color_table = None
+    for table in tables:
+        prev = table.find_previous_sibling()
     
-    rows = soup.select('td')
-    print(rows)
+        if prev and prev.name == 'p':
+            color_table = table
+            break
 
-    # for table in tables:
-    #     print(f"Rows: {len(table.find_all('tr'))}")
-    #     print(f"Cols: {len(table.find_all('td')) / len(table.find_all('tr'))}")
-    #     print("\n")
-    #     previous_sibling = table.find_previous_sibling()
-    #     if previous_sibling and previous_sibling.name == 'p':
-    #         print("Table following a <p> element:")
-    #         rows = table.find_all('tr')
-    #         for row in rows:
-    #             cols = row.find_all('td')
-    #             col_texts = [col.get_text(strip=True) for col in cols]
-    #             print("\t".join(col_texts))
-    #         print("\n")
+    
+    if not color_table:
+        print("Could not find color table")
+        return
+    
+    print(f'Potential codes for each color of part {number}:')
+    potential_codes_by_color = defaultdict(set)
+    for row in color_table.find_all('tr')[1:]:
+        columns = row.findChildren('td')
+        if (len(columns) > 4):
+            color = columns[3].text.strip()
+            code = columns[4].text.strip()
+            if color == ' By ':
+                continue
+            potential_codes_by_color[color].add(code)
+            # print( color, code)
+    print(potential_codes_by_color)
+    # print(colors_by_name)
+
 
 if __name__ == "__main__":
     main()
