@@ -7,3 +7,13 @@ Unfortunately, this is not as simple as converting the XML data to CSV/JSON, as 
 
 ## The solution
 The good news is, BrickLink does keep track of which parts are available in which colors, and users have reported what the "part color code" is (element ID), and if we can figure out how to map the design ID + color code to that element ID, we can be successful. Whether or not we can use the BrickLink API or will have to webscrape for it (since it appears to be a very informal reporting system) remains to be seen.
+
+## Resources
+1. Bricklink Color Guide - This provides the mapping of Color ID to Color Name and other information that we don't need
+```
+https://www.bricklink.com/catalogColors.asp
+```
+2. Bricklink Color Images (per-part) - This provides a table of Color Name to "Part Color Code" (Element ID) mappings
+```
+https://www.bricklink.com/catalogColors.asp?itemType=P&itemNo=32062
+```
