@@ -1,4 +1,4 @@
-colors = {
+colors_by_id = {
     1: "White",
     49: "Very Light Gray",
     99: "Very Light Bluish Gray",
@@ -209,3 +209,5 @@ colors = {
     218: "Mx Foil Yellow",
     219: "Mx Foil Orange",
 }
+
+colors_by_name = dict(zip(colors_by_id.values(), colors_by_id.keys()))
