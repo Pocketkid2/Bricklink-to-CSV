@@ -29,3 +29,4 @@ https://www.bricklink.com/catalogColors.asp?itemType=P&itemNo=32062
 2. No error printout if the algorithm can't find Element IDs
 3. No way of checking if LEGO actually sells given Element ID
 4. No way of checking if LEGO accepts more than one Element ID, leading to potential duplicates
+5. Parallelize web requests?
