@@ -77,11 +77,16 @@ def main():
         remaining_parts = total_parts - (i + 1)
         estimated_time_remaining = average_time_per_part * remaining_parts
         
+        est_minutes, est_seconds = divmod(estimated_time_remaining, 60)
         print(f"Processed part {i + 1}/{total_parts} in {elapsed_time:.2f} seconds.")
-        print(f"Estimated time remaining: {estimated_time_remaining:.2f} seconds.")
+        print(f"Estimated time remaining: {int(est_minutes)} minutes and {int(est_seconds)} seconds.")
 
     total_time = time.time() - start_time
-    print(f"Total time taken: {total_time:.2f} seconds.")
+    total_minutes, total_seconds = divmod(total_time, 60)
+    print(f"Total time taken: {int(total_minutes)} minutes and {int(total_seconds)} seconds.")
+    
+    print(f"Number of entries in input parts array: {len(parts_input)}")
+    print(f"Number of entries in output parts array: {len(parts_output)}")
     
     _, ext = os.path.splitext(args.output_file)
     if ext == '.csv':
