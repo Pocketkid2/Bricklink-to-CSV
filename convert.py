@@ -1,3 +1,4 @@
+import logging
 import argparse
 import concurrent.futures
 from colors import colors_by_id
@@ -47,48 +48,6 @@ def main():
 
     logging.basicConfig(filename=args.log_file, level=logging.DEBUG, format='%(asctime)s [%(levelname)s] %(message)s')
 
-    bricklink_parts = parse_xml(args.input_xml)
-
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        lego_parts = list(executor.map(process_bricklink_part_to_lego_part, bricklink_parts))
-        print(f"Processed {len(lego_parts)} parts")
-        logging.info(f"Processed {len(lego_parts)} parts")
-        for part_list in lego_parts:
-            if part_list is None:
-                print("Could not find color info for part")
-            elif not part_list:
-                print("No available LEGO parts found for this part/color combination")
-            else:
-                print(f"Found {len(part_list)} LEGO parts for this part/color combination")
-                for part in part_list:
-                    print(part)
-
-
-
-
-
-
-
-    
-    # _, ext = os.path.splitext(args.output_file)
-    # base_filename = os.path.splitext(args.output_file)[0]
-    
-    # if len(parts_output) > 400:
-    #     for i in range(0, len(parts_output), 400):
-    #         part_data = parts_output[i:i + 400]
-    #         part_filename = f"{base_filename}_part{i//400 + 1}{ext}"
-    #         if ext == '.csv':
-    #             export_csv(part_data, part_filename)
-    #         elif ext == '.json':
-    #             export_json(part_data, part_filename)
-    #         print(f"Saved {len(part_data)} entries to {part_filename}")
-    # else:
-    #     if ext == '.csv':
-    #         export_csv(parts_output, args.output_file)
-    #     elif ext == '.json':
-    #         export_json(parts_output, args.output_file)
-    #     else:
-    #         raise ValueError("Output file must have a .csv or .json extension")
 
 if __name__ == '__main__':
     main()
