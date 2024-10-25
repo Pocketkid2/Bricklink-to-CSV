@@ -89,12 +89,24 @@ def main():
     print(f"Number of entries in output parts array: {len(parts_output)}")
     
     _, ext = os.path.splitext(args.output_file)
-    if ext == '.csv':
-        export_csv(parts_output, args.output_file)
-    elif ext == '.json':
-        export_json(parts_output, args.output_file)
+    base_filename = os.path.splitext(args.output_file)[0]
+    
+    if len(parts_output) > 400:
+        for i in range(0, len(parts_output), 400):
+            part_data = parts_output[i:i + 400]
+            part_filename = f"{base_filename}_part{i//400 + 1}{ext}"
+            if ext == '.csv':
+                export_csv(part_data, part_filename)
+            elif ext == '.json':
+                export_json(part_data, part_filename)
+            print(f"Saved {len(part_data)} entries to {part_filename}")
     else:
-        raise ValueError("Output file must have a .csv or .json extension")
+        if ext == '.csv':
+            export_csv(parts_output, args.output_file)
+        elif ext == '.json':
+            export_json(parts_output, args.output_file)
+        else:
+            raise ValueError("Output file must have a .csv or .json extension")
 
 if __name__ == '__main__':
     main()
