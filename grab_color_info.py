@@ -1,10 +1,10 @@
 import sys
+import shelve
 import requests
 from bs4 import BeautifulSoup
-from collections import defaultdict
+from colors import colors_by_name
 
 
-import shelve
 def shelve_it(file_name):
     def decorator(func):
         def new_func(param):
@@ -16,14 +16,11 @@ def shelve_it(file_name):
         return new_func
     return decorator
 
-def url_for_part_catalog_colors(design_id):
-    return f"https://www.bricklink.com/catalogColors.asp?itemType=P&itemNo={design_id}"
-
 
 @shelve_it('webpage_cache.shelve')
 def get_webpage_for_part(design_id):
     try:
-        url = url_for_part_catalog_colors(design_id)
+        url = f"https://www.bricklink.com/catalogColors.asp?itemType=P&itemNo={design_id}"
         print(f"Fetching {url}...")
         response = requests.get(url, headers={"User-Agent": "Mozilla/5.0", "accept-language": "en-US,en"})
         response.raise_for_status()  # Raise an HTTPError for bad responses (4xx and 5xx)
@@ -38,44 +35,54 @@ def get_webpage_for_part(design_id):
         raise err
 
 
+def find_color_table_in_page(page_content):
+    soup = BeautifulSoup(page_content, 'lxml')
+    tables = soup.select('center > table')
+    color_table = None
+    for table in tables:
+        prev = table.find_previous_sibling()
+        if prev and prev.name == 'p':
+            color_table = table
+            break
+    return color_table
+
+
+COLOR_COLUMN = 3
+ELEMENT_ID_COLUMN = 4
+def convert_table_to_dict(table):
+    dict = {}
+    rows = table.find_all('tr')
+    print("Rows: ", len(rows))
+    for row in rows:
+        data = row.find_all('td')
+        if len(data) < 5:
+            continue
+        color_name = data[COLOR_COLUMN].text
+        color_name = color_name.strip().replace('\xa0', '')
+        if color_name not in colors_by_name.keys():
+            print(f"Unknown color: {color_name}")
+            continue
+        color_id = colors_by_name[color_name]
+        element_id = data[ELEMENT_ID_COLUMN].text
+        element_id = element_id.strip().replace('\xa0', '')
+        if dict.get(color_id):
+            dict[color_id].append(element_id)
+        else:
+            dict[color_id] = [element_id]
+    return dict
+
 def main():
     if len(sys.argv) != 2:
         print("Usage: python grab_color_info.py <number>")
         return
-
     number = sys.argv[1]
     response_content = get_webpage_for_part(number)
-
-    soup = BeautifulSoup(response_content, 'lxml')
-
-    tables = soup.select('center > table')
-
-    color_table = None
-    for table in tables:
-        prev = table.find_previous_sibling()
-    
-        if prev and prev.name == 'p':
-            color_table = table
-            break
-
-    
+    color_table = find_color_table_in_page(response_content)
     if not color_table:
         print("Could not find color table")
         return
-    
-    print(f'Potential codes for each color of part {number}:')
-    potential_codes_by_color = defaultdict(set)
-    for row in color_table.find_all('tr')[1:]:
-        columns = row.findChildren('td')
-        if (len(columns) > 4):
-            color = columns[3].text.strip()
-            code = columns[4].text.strip()
-            if color == ' By ':
-                continue
-            potential_codes_by_color[color].add(code)
-            # print( color, code)
-    print(potential_codes_by_color)
-    # print(colors_by_name)
+    color_dict = convert_table_to_dict(color_table)
+    print("Color dict: ", color_dict)
 
 
 if __name__ == "__main__":
