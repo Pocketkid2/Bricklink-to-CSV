@@ -1,45 +1,7 @@
-import os
-import csv
-import json
-import time
-import logging
 import argparse
 import concurrent.futures
 from colors import colors_by_id
-import xml.etree.ElementTree as ET
 from grab_color_info import get_color_dict_for_part
-
-
-def parse_xml(path):
-    tree = ET.parse(path)
-    root = tree.getroot()
-    parts = []
-    for item in root:
-        part = {}
-        for data in item:
-            if data.tag == 'ITEMID':
-                part['design_id'] = data.text
-            elif data.tag == 'COLOR':
-                part['color_id'] = data.text
-            elif data.tag == 'MINQTY':
-                part['quantity'] = data.text
-        parts.append(part)
-    return parts
-
-
-def export_csv(data, path):
-    fields = ['elementId', 'quantity']
-    with open(path, 'w', newline='') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=fields)
-        writer.writeheader()
-        writer.writerows(data)
-    logging.info(f"Exported {len(data)} entries to {path}")
-
-
-def export_json(data, path):
-    with open(path, 'w') as jsonfile:
-        json.dump(data, jsonfile, indent=4)
-    logging.info(f"Exported {len(data)} entries to {path}")
 
 
 def process_bricklink_part_to_lego_part(bricklink_part):
