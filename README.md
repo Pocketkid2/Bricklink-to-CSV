@@ -17,3 +17,15 @@ https://www.bricklink.com/catalogColors.asp
 ```
 https://www.bricklink.com/catalogColors.asp?itemType=P&itemNo=32062
 ```
+
+## Current functionality
+1. Can choose between LEGO Pick-a-Brick JSON or CSV
+2. Normal parts work beautifully; printed and rare parts, not so much, but that's to be expected
+3. Conversion can take some time (15-20 for large lists) but progress is displayed
+4. Webpage results from BrickLink are cached so the same web request does not need to be made again (the primary speed bottleneck)
+
+## Known issues
+1. Cache stores webpage results, leading to much larger cache file size than is necessary
+2. No error printout if the algorithm can't find Element IDs
+3. No way of checking if LEGO actually sells given Element ID
+4. No way of checking if LEGO accepts more than one Element ID, leading to potential duplicates
