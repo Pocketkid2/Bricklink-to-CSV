@@ -52,7 +52,6 @@ ELEMENT_ID_COLUMN = 4
 def convert_table_to_dict(table):
     dict = {}
     rows = table.find_all('tr')
-    print("Rows: ", len(rows))
     for row in rows:
         data = row.find_all('td')
         if len(data) < 5:
@@ -60,7 +59,6 @@ def convert_table_to_dict(table):
         color_name = data[COLOR_COLUMN].text
         color_name = color_name.strip().replace('\xa0', '')
         if color_name not in colors_by_name.keys():
-            print(f"Unknown color: {color_name}")
             continue
         color_id = colors_by_name[color_name]
         element_id = data[ELEMENT_ID_COLUMN].text
@@ -82,7 +80,6 @@ def main():
         print("Could not find color table")
         return
     color_dict = convert_table_to_dict(color_table)
-    print("Color dict: ", color_dict)
 
 
 if __name__ == "__main__":
