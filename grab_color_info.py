@@ -1,6 +1,8 @@
 import sys
 import shelve
+import logging
 import requests
+import dbm.dumb as dbm
 from bs4 import BeautifulSoup
 from colors import colors_by_name
 
@@ -8,7 +10,7 @@ from colors import colors_by_name
 def shelve_it(file_name):
     def decorator(func):
         def new_func(param):
-            with shelve.open(file_name) as d:
+            with shelve.open(file_name, dbm=dbm) as d:
                 if param not in d:
                     d[param] = func(param)
                 return d[param]
@@ -18,10 +20,22 @@ def shelve_it(file_name):
 
 
 @shelve_it('webpage_cache.shelve')
+def get_color_dict_for_part(design_id):
+    webpage_content = get_webpage_for_part(design_id)
+    color_table = find_color_table_in_page(webpage_content)
+    if not color_table:
+        print("Could not find color table for design ID: ", design_id)
+        logging.error(f"Could not find color table for design ID: {design_id}")
+        return
+    color_dict = convert_table_to_dict(color_table)
+    return color_dict
+
+
 def get_webpage_for_part(design_id):
     try:
         url = f"https://www.bricklink.com/catalogColors.asp?itemType=P&itemNo={design_id}"
         print(f"Fetching {url}...")
+        logging.info(f"Fetching {url}...")
         response = requests.get(url, headers={"User-Agent": "Mozilla/5.0", "accept-language": "en-US,en"})
         response.raise_for_status()  # Raise an HTTPError for bad responses (4xx and 5xx)
         return response.content
@@ -74,12 +88,8 @@ def main():
         print("Usage: python grab_color_info.py <number>")
         return
     number = sys.argv[1]
-    response_content = get_webpage_for_part(number)
-    color_table = find_color_table_in_page(response_content)
-    if not color_table:
-        print("Could not find color table")
-        return
-    color_dict = convert_table_to_dict(color_table)
+    color_dict = get_color_dict_for_part(number)
+    print(f"Color dict for part {number}: {color_dict}")
 
 
 if __name__ == "__main__":
