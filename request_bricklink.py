@@ -24,7 +24,6 @@ def get_color_dict_for_part(design_id):
     webpage_content = get_webpage_for_part(design_id)
     color_table = find_color_table_in_page(webpage_content)
     if not color_table:
-        print("Could not find color table for design ID: ", design_id)
         logging.error(f"Could not find color table for design ID: {design_id}")
         return
     color_dict = convert_table_to_dict(color_table)
@@ -47,7 +46,6 @@ def get_webpage_for_part(design_id):
     """
     try:
         url = f"https://www.bricklink.com/catalogColors.asp?itemType=P&itemNo={design_id}"
-        print(f"Fetching {url}...")
         logging.info(f"Fetching {url}...")
         response = requests.get(url, headers={"User-Agent": "Mozilla/5.0", "accept-language": "en-US,en"})
         response.raise_for_status()  # Raise an HTTPError for bad responses (4xx and 5xx)
