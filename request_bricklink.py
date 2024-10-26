@@ -1,26 +1,26 @@
+"""Bricklink Request.
+
+This module contains the API needed for making web requests to BrickLink.com
+and obtaining a color dictionary for a given part number (design ID).
+"""
+
 import sys
-import shelve
 import logging
 import requests
-import dbm.dumb as dbm
 from bs4 import BeautifulSoup
 from colors import colors_by_name
 
 
-def shelve_it(file_name):
-    def decorator(func):
-        def new_func(param):
-            with shelve.open(file_name, dbm=dbm) as d:
-                if param not in d:
-                    d[param] = func(param)
-                return d[param]
-
-        return new_func
-    return decorator
-
-
-@shelve_it('webpage_cache.shelve')
 def get_color_dict_for_part(design_id):
+    """
+    Get a color dictionary for a given part number (design ID).
+
+    Args:
+        design_id (int): The part number (design ID).
+
+    Returns:
+        dict: A dictionary mapping color IDs to lists of element IDs.
+    """
     webpage_content = get_webpage_for_part(design_id)
     color_table = find_color_table_in_page(webpage_content)
     if not color_table:
@@ -32,6 +32,19 @@ def get_color_dict_for_part(design_id):
 
 
 def get_webpage_for_part(design_id):
+    """
+    Get the webpage content for a given part number (design ID).
+
+    Args:
+        design_id (int): The part number (design ID).
+
+    Raises:
+        http_err: An HTTP error occurred.
+        err: An error occurred.
+
+    Returns:
+        bytes: The content of the webpage.
+    """
     try:
         url = f"https://www.bricklink.com/catalogColors.asp?itemType=P&itemNo={design_id}"
         print(f"Fetching {url}...")
@@ -50,6 +63,15 @@ def get_webpage_for_part(design_id):
 
 
 def find_color_table_in_page(page_content):
+    """
+    Find the color table in the given page content.
+
+    Args:
+        page_content (bytes): The content of the webpage.
+
+    Returns:
+        bs4.element.Tag: The color table element.
+    """
     soup = BeautifulSoup(page_content, 'lxml')
     tables = soup.select('center > table')
     color_table = None
@@ -61,9 +83,21 @@ def find_color_table_in_page(page_content):
     return color_table
 
 
+# Constants for the columns in the color table
 COLOR_COLUMN = 3
 ELEMENT_ID_COLUMN = 4
+
+
 def convert_table_to_dict(table):
+    """
+    Convert the color table to a dictionary.
+
+    Args:
+        table (bs4.element.Tag): The color table element.
+
+    Returns:
+        dict: A dictionary mapping color IDs to lists of element IDs.
+    """
     dict = {}
     rows = table.find_all('tr')
     for row in rows:
@@ -83,7 +117,13 @@ def convert_table_to_dict(table):
             dict[color_id] = [element_id]
     return dict
 
+
 def main():
+    """
+    Entrypoint for test.
+
+    You can run this script from the command line to test the functionality of the API.
+    """
     if len(sys.argv) != 2:
         print("Usage: python grab_color_info.py <number>")
         return
