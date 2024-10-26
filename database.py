@@ -69,7 +69,7 @@ class DatabaseManager:
         else:
             self.logger.info(f"Inserted BrickLink entry: {element_id}, {design_id}, {color_code}")
 
-    def insert_lego_pab_entry(self, element_id, lego_sells, bestseller, price):
+    def insert_lego_pab_entry(self, element_id, lego_sells, bestseller, price, max_order_quantity):
         """
         Insert a new entry into the LEGO Pick-a-Brick table.
 
@@ -77,13 +77,14 @@ class DatabaseManager:
             element_id (int): The element ID.
             lego_sells (bool): Whether LEGO sells this item.
             bestseller (bool): Whether this item is a bestseller.
-            price (float): The price of the item.
+            price (int): The price of the item, in cents.
+            max_order_quantity (int): The maximum order quantity.
         """
-        self.cursor.execute('INSERT OR IGNORE INTO lego_pab_entries VALUES (?, ?, ?, ?)', (element_id, lego_sells, bestseller, price))
+        self.cursor.execute('INSERT OR IGNORE INTO lego_pab_entries VALUES (?, ?, ?, ?, ?)', (element_id, lego_sells, bestseller, price, max_order_quantity))
         if self.cursor.rowcount == 0:
-            self.logger.info(f"Skipped existing LEGO Pick-a-Brick entry: {element_id}, {lego_sells}, {bestseller}, {price}")
+            self.logger.info(f"Skipped existing LEGO Pick-a-Brick entry: {element_id}, {lego_sells}, {bestseller}, {price}, {max_order_quantity}")
         else:
-            self.logger.info(f"Inserted LEGO Pick-a-Brick entry: {element_id}, {lego_sells}, {bestseller}, {price}")
+            self.logger.info(f"Inserted LEGO Pick-a-Brick entry: {element_id}, {lego_sells}, {bestseller}, {price}, {max_order_quantity}")
 
     def get_bricklink_entry_by_design_id(self, design_id):
         """
