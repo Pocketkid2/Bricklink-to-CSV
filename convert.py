@@ -1,52 +1,64 @@
+"""
+Convert.
+
+This module processes XML files and exports the data to CSV or JSON files.
+It also sets up logging and handles database operations.
+"""
+
+import sys
 import logging
 import argparse
-import concurrent.futures
-from colors import colors_by_id
-from grab_color_info import get_color_dict_for_part
+from database import *
 
 
-def process_bricklink_part_to_lego_part(bricklink_part):
-    design_id = bricklink_part['design_id']
-    color_id = bricklink_part['color_id']
-    quantity = bricklink_part['quantity']
+def setup_logger(log_file):
+    """
+    Configure and return a logger instance.
 
-    print(f"Processing part {design_id} in color {color_id} with quantity {quantity}")
-    logging.info(f"Processing part {design_id} in color {color_id} with quantity {quantity}")
+    Args:
+        log_file (str): The path to the log file.
 
-    color_dict = get_color_dict_for_part(design_id)
-    if not color_dict:
-        print(f"Could not find color info for part {design_id} (input color {color_id}, input quantity {quantity})")
-        logging.warning(f"Could not find color info for part {design_id} (input color {color_id}, input quantity {quantity})")
-        return None
-    
-    print(f"Found {len(color_dict)} colors for part {design_id}")
-    logging.info(f"Found {len(color_dict)} colors for part {design_id}")
+    Returns:
+        logging.Logger: Configured logger instance.
+    """
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
 
-    lego_parts = []
-    for color_code, element_ids in color_dict.items():
-        for element_id in element_ids:
-            if color_code == color_id:
-                # TODO - Apply LEGO.com API to filter this and add another column for bestseller/not and price
-                lego_part = {
-                    'elementId': element_id,
-                    'quantity': quantity
-                }
-                lego_parts.append(lego_part)
+    # File handler
+    file_handler = logging.FileHandler(log_file)
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] %(message)s'))
 
-    print(f"Found {len(lego_parts)} LEGO parts for part {design_id} in color {color_id}")
-    logging.info(f"Found {len(lego_parts)} LEGO parts for part {design_id} in color {color_id}")
+    # Stream handler (stdout)
+    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler.setLevel(logging.DEBUG)
+    stream_handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] %(message)s'))
 
-    return lego_parts
+    # Add handlers to the logger
+    logger.addHandler(file_handler)
+    logger.addHandler(stream_handler)
+
+    return logger
 
 
 def main():
+    """
+    Parse command-line arguments, set up logging, and process the XML file.
+
+    This function handles the main workflow of the script, including parsing
+    command-line arguments, setting up logging, and processing the input XML
+    file to export data to CSV or JSON.
+    """
     parser = argparse.ArgumentParser(description='Process XML and export to CSV or JSON.')
     parser.add_argument('input_xml', help='Path to the input XML file')
     parser.add_argument('output_file', help='Path to the output file')
-    parser.add_argument('log_file', help='Path to the log file')
+    parser.add_argument('log_file', default='log.txt', help='Path to the log file')
+    parser.add_argument('database_file', default='part_info.db', help='Path to the SQLite database file')
+    parser.add_argument('-pb', '--purge_bricklink', action='store_true', help='Purge the BrickLink table in the database before processing the XML')
+    parser.add_argument('-pl', '--purge_lego_pab', action='store_true', help='Purge the LEGO Pick-a-Brick table in the database before processing the XML')
     args = parser.parse_args()
 
-    logging.basicConfig(filename=args.log_file, level=logging.DEBUG, format='%(asctime)s [%(levelname)s] %(message)s')
+    logger = setup_logger(args.log_file)
 
 
 if __name__ == '__main__':
