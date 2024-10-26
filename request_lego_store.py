@@ -23,13 +23,6 @@ fragment ElementLeaf on SearchResultElement {
 }
 '''
 
-def parse_json(response_json):
-    results = response_json['data']['searchElements']['results']
-    if len(results) > 0:
-        return results
-    raise results
-
-
 def get_lego_store_result_for_element_id(element_id):
     url = "https://www.lego.com/api/graphql/PickABrickQuery" 
     json_body = {
@@ -43,7 +36,7 @@ def get_lego_store_result_for_element_id(element_id):
     response.raise_for_status()  # Raise an exception for HTTP errors
     response_json = response.json()
 
-    results = parse_json(response_json)
+    results = response_json['data']['searchElements']['results']
     if len(results) < 1:
         logging.error(f"Did not receive result for element ID: {element_id}")
         return
