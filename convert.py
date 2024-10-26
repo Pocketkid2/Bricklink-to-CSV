@@ -18,6 +18,14 @@ from request_bricklink import get_color_dict_for_part
 from request_lego_store import get_lego_store_result_for_element_id
 
 
+RESOLVE_METHODS = {
+    'A': 'Choose best-seller',
+    'B': 'Choose non-best-seller',
+    'C': 'Choose whichever has larger lot count',
+    'D': 'Choose whichever has larger total part count',
+}
+
+
 def setup_logger(log_file):
     """
     Configure and return a logger instance.
@@ -79,15 +87,15 @@ def main():
     
     # Step 0 - Parse input XML file
     bricklink_xml_partslist = parse_xml(args.input_xml)
-    logging.info(f"Step 0 complete - bricklink XML partslist: {bricklink_xml_partslist}")
+    logging.info(f"Step 0 complete - bricklink XML partslist (length {len(bricklink_xml_partslist)}): {bricklink_xml_partslist}")
     
     # Step 1 - round up all design IDs
     unique_design_ids = {part['design_id'] for part in bricklink_xml_partslist}
-    logging.info(f"Step 1 complete - unique design IDs: {unique_design_ids}")
+    logging.info(f"Step 1 complete - unique design IDs (length {len(unique_design_ids)}): {unique_design_ids}")
     
     # Step 2 - Find out which design IDs are NOT in the bricklink database table
     request_design_ids = {design_id for design_id in unique_design_ids if not database.get_bricklink_entry_by_design_id(design_id)}
-    logging.info(f"Step 2 complete - request design IDs: {request_design_ids}")
+    logging.info(f"Step 2 complete - request design IDs (length {len(request_design_ids)}): {request_design_ids}")
     
     # Step 3 - Make the requests to bricklink for all the missing design IDs
     database_insertions = 0
@@ -110,11 +118,11 @@ def main():
     for part in bricklink_xml_partslist:
         element_ids = [element_id for (element_id, _, _) in database.get_bricklink_entries_by_design_id_and_color_code(part['design_id'], part['color_id'])]
         master_element_ids.update(element_ids)
-    logging.info(f"Step 4 complete - master element IDs: {master_element_ids}")
+    logging.info(f"Step 4 complete - master element IDs (length {len(master_element_ids)}): {master_element_ids}")
     
     # Step 5 - Find out which element IDs are not in the lego pick-a-brick database table
     request_element_ids = {element_id for element_id in master_element_ids if not database.get_lego_store_entry_by_element_id(element_id)}
-    logging.info(f"Step 5 complete - request element IDs: {request_element_ids}")
+    logging.info(f"Step 5 complete - request element IDs (length {len(request_element_ids)}): {request_element_ids}")
     
     # Step 6 - Make the requests to lego pick-a-brick for all the missing element IDs
     database_insertions = 0
@@ -147,6 +155,59 @@ def main():
     # FACT: If shipping both bestseller and non-bestseller, $18.95 shipping for both
     # FACT: max quantity of a single item is 999
     # FACT: If you have a large enough order, free shipping
+    
+    bucket_zero_not_available = []
+    bucket_one_available = []
+    bucket_two_available = []
+    
+    # Step 7.1 - For each part in the original list, find out how many elements it has that LEGO sells
+    LEGO_SELLS_COLUMN = 4
+
+    for part in bricklink_xml_partslist:
+        available_elements = 0
+        element_results = database.match_bricklink_entries_to_lego_store_entries(part['design_id'], part['color_id'])
+
+        for element_result in element_results:
+            if element_result[LEGO_SELLS_COLUMN]:
+                available_elements += 1
+
+        if available_elements == 0:
+            bucket_zero_not_available.append(part)
+        elif available_elements == 1:
+            bucket_one_available.append(part)
+        elif available_elements == 2:
+            bucket_two_available.append(part)
+        else:
+            logging.error(f"Part {part} has {available_elements} available elements from the store")
+    
+    logging.info(f"Step 7.1 complete - bucket not available (length {len(bucket_zero_not_available)}): {bucket_zero_not_available}")
+    logging.info(f"Step 7.1 complete - bucket one available (length {len(bucket_one_available)}): {bucket_one_available}")
+    logging.info(f"Step 7.1 complete - bucket two available (length {len(bucket_two_available)}): {bucket_two_available}")
+    
+    # Step 7.2 - Find out how many "one available" options are bestseller vs not
+    BESTSELLER_COLUMN = 5
+
+    bestseller_lot_count = 0
+    bestseller_total_count = 0
+    non_bestseller_lot_count = 0
+    non_bestseller_total_count = 0
+    for part in bucket_one_available:
+        element_results = database.match_bricklink_entries_to_lego_store_entries(part['design_id'], part['color_id'])
+
+        for element_result in element_results:
+            if element_result[LEGO_SELLS_COLUMN]:
+                if element_result[BESTSELLER_COLUMN]:
+                    bestseller_lot_count += 1
+                    bestseller_total_count += int(part['quantity'])
+                else:
+                    non_bestseller_lot_count += 1
+                    non_bestseller_total_count += int(part['quantity'])
+
+    logging.info(f"Step 7.2 complete - In the 'one available' bucket, bestseller has {bestseller_lot_count} lots and {bestseller_total_count} total parts, non-bestseller has {non_bestseller_lot_count} lots and {non_bestseller_total_count} total parts")
+    
+    # Step 7.3 - Resolve what to do with the "two available" parts
+    
+
     
     # Step 8 - export the data to the output file
     
