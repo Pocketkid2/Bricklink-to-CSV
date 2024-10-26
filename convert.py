@@ -15,7 +15,7 @@ from database import *
 import concurrent.futures
 from parse import parse_xml
 from request_bricklink import get_color_dict_for_part
-from request_lego_pab import get_lego_store_result_for_element_id
+from request_lego_store import get_lego_store_result_for_element_id
 
 
 def setup_logger(log_file):
