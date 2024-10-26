@@ -1,9 +1,22 @@
+"""Parse.
+
+This module provides functions to parse XML files and extract partslist data.
+"""
+
 import logging
 import xml.etree.ElementTree as ET
 
 
-# Create partslist data from XML file
 def parse_xml(path):
+    """
+    Create partslist data from an XML file.
+
+    Args:
+        path (str): The file path to the XML file.
+
+    Returns:
+        list of dict: The partslist data extracted from the XML file.
+    """
     tree = ET.parse(path)
     root = tree.getroot()
     parts = []
@@ -23,5 +36,7 @@ def parse_xml(path):
                 total_quantity += int(data.text)
             unique_elements.add(f"{part['design_id']}/{part['color_id']}")
         parts.append(part)
-    logging.info(f"Found {unique_designs} unique designs, {unique_elements} unique elements, with {total_quantity} total quantity in {path}")
+    logging.info(f"Found {len(unique_designs)} unique designs, "
+                 f"{len(unique_elements)} unique elements, "
+                 f"with {total_quantity} total quantity in {path}")
     return parts
