@@ -43,9 +43,9 @@ class DatabaseManager:
         self.cursor.execute('''CREATE TABLE IF NOT EXISTS lego_store_entries (
             element_id INTEGER NOT NULL PRIMARY KEY,
             lego_sells BOOLEAN NOT NULL,
-            bestseller BOOLEAN NOT NULL,
-            price INTEGER NOT NULL,
-            max_order_quantity INTEGER NOT NULL
+            bestseller BOOLEAN,
+            price INTEGER,
+            max_order_quantity INTEGER
         )''')
 
     def close(self):
