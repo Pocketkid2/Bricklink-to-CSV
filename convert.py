@@ -124,8 +124,7 @@ def main():
                     database.insert_lego_pab_entry(element_id, lego_sells=False, bestseller=None, price=None, max_order_quantity=None)
                 else:
                     if data['deliveryChannel'] not in ['pab', 'bap']:
-                        print(f"Invalid delivery channel: {data['deliveryChannel']}")
-                        # raise ValueError(f"Invalid delivery channel: {data['deliveryChannel']}")
+                        raise ValueError(f"Invalid delivery channel: {data['deliveryChannel']}")
                     database.insert_lego_pab_entry(element_id, lego_sells=True, bestseller=(data['deliveryChannel'] == 'pab'), price=data['price']['centAmount'], max_order_quantity=data['maxOrderQuantity'])
                 print(f"Step 6 - Element ID {element_id} data: {data}")
             except Exception as exc:
