@@ -38,7 +38,7 @@ def get_lego_store_result_for_element_id(element_id):
 
     results = response_json['data']['searchElements']['results']
     if len(results) < 1:
-        logging.error(f"Did not receive result for element ID: {element_id}")
+        logging.warning(f"Did not receive result for element ID: {element_id}")
         return
     logging.info(f"Received {len(results)} results for element ID: {element_id}, returning the first one.")
     return results[0]
