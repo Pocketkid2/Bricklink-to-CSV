@@ -1,4 +1,5 @@
-"""Parse.
+"""
+Parse.
 
 This module provides functions to parse XML files and extract partslist data.
 """

@@ -1,4 +1,5 @@
-"""Export.
+"""
+Export.
 
 This module provides functions to export partslist data to CSV and JSON files.
 """
