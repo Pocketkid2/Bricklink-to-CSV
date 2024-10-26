@@ -1,3 +1,9 @@
+"""LEGO Pick-A-Brick Request.
+
+This module contains the API needed for making web requests to LEGO.com
+and obtaining Pick-A-Brick store results for a part number (Element ID).
+"""
+
 import sys
 import logging
 import requests
@@ -23,8 +29,18 @@ fragment ElementLeaf on SearchResultElement {
 }
 '''
 
+
 def get_lego_store_result_for_element_id(element_id):
-    url = "https://www.lego.com/api/graphql/PickABrickQuery" 
+    """
+    Get the Pick-A-Brick store results for a given part number (Element ID).
+
+    Args:
+        element_id (int): The part number (Element ID).
+
+    Returns:
+        dict: A dictionary containing the store results for the given part number.
+    """
+    url = "https://www.lego.com/api/graphql/PickABrickQuery"
     json_body = {
         "operationName": "PickABrickQuery",
         "variables": {"input": {"perPage": 10, "query": str(element_id)}},
@@ -46,7 +62,9 @@ def get_lego_store_result_for_element_id(element_id):
 
 def main():
     """
-    Main function to handle command line argument and make the GraphQL request.
+    Entry point for test.
+
+    You can run this script from the command line to test the functionality of the API
     """
     if len(sys.argv) != 2:
         print("Usage: python request_lego_store.py <element_id>")
