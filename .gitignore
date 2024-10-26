@@ -5,3 +5,4 @@ __pycache__
 *.shelve
 *.shelve.*
 *.txt
+*.db
