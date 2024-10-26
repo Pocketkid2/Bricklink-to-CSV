@@ -12,6 +12,10 @@ import sys
 import logging
 import argparse
 from database import *
+import concurrent.futures
+from parse import parse_xml
+from request_bricklink import get_color_dict_for_part
+from request_lego_pab import get_lego_store_result_for_element_id
 
 
 def setup_logger(log_file):
@@ -55,8 +59,8 @@ def main():
     parser = argparse.ArgumentParser(description='Process XML and export to CSV or JSON.')
     parser.add_argument('input_xml', help='Path to the input XML file')
     parser.add_argument('output_file', help='Path to the output file')
-    parser.add_argument('log_file', default='log.txt', help='Path to the log file')
-    parser.add_argument('database_file', default='part_info.db', help='Path to the SQLite database file')
+    parser.add_argument('-l', '--log_file', default='log.txt', help='Path to the log file')
+    parser.add_argument('-db', '--database_file', default='part_info.db', help='Path to the SQLite database file')
     parser.add_argument('-pb', '--purge_bricklink', action='store_true', help='Purge the BrickLink table in the database before processing the XML')
     parser.add_argument('-pl', '--purge_lego_pab', action='store_true', help='Purge the LEGO Pick-a-Brick table in the database before processing the XML')
     args = parser.parse_args()
@@ -73,21 +77,60 @@ def main():
         database.purge_lego_pab_table()
         return
     
+    # Step 0 - Parse input XML file
+    bricklink_xml_partslist = parse_xml(args.input_xml)
+    print(f"Step 0 - bricklink xml partslist: {bricklink_xml_partslist}")
+    
     # Step 1 - round up all design IDs
+    unique_design_ids = {part['design_id'] for part in bricklink_xml_partslist}
+    print(f"Step 1 - unique design IDs: {unique_design_ids}")
     
     # Step 2 - Find out which design IDs are NOT in the bricklink database table
+    request_design_ids = {design_id for design_id in unique_design_ids if not database.get_bricklink_entry_by_design_id(design_id)}
+    print(f"Step 2 - request design IDs: {request_design_ids}")
     
     # Step 3 - Make the requests to bricklink for all the missing design IDs
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future_to_design_id = {executor.submit(get_color_dict_for_part, design_id): design_id for design_id in request_design_ids}
+        for future in concurrent.futures.as_completed(future_to_design_id):
+            design_id = future_to_design_id[future]
+            try:
+                data = future.result()
+                for color_code, element_id_list in data.items():
+                    for element_id in element_id_list:
+                        database.insert_bricklink_entry(element_id, design_id, color_code)
+            except Exception as exc:
+                print(f"Step 3 - Design ID {design_id} generated an exception: {exc}")
     
     # Step 4 - Create a master list of all potential element IDs
+    master_element_ids = set()
+    for part in bricklink_xml_partslist:
+        element_ids = [element_id for (element_id, _, _) in database.get_bricklink_entries_by_design_id_and_color_code(part['design_id'], part['color_id'])]
+        master_element_ids.update(element_ids)
+        print(f"Step 4 - element IDs for design ID {part['design_id']} and color code {part['color_id']}: {element_ids}")
     
-    # Step 5 - Find out which element IDs are not in the leg pick-a-brick database table
+    # Step 5 - Find out which element IDs are not in the lego pick-a-brick database table
+    request_element_ids = {element_id for element_id in master_element_ids if not database.get_lego_pab_entry_by_element_id(element_id)}
+    print(f"Step 5 - request element IDs: {request_element_ids}")
     
     # Step 6 - Make the requests to lego pick-a-brick for all the missing element IDs
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future_to_element_id = {executor.submit(get_lego_store_result_for_element_id, element_id): element_id for element_id in request_element_ids}
+        for future in concurrent.futures.as_completed(future_to_element_id):
+            element_id = future_to_element_id[future]
+            try:
+                data = future.result()
+                #database.insert_lego_pab_entry(element_id, data['lego_sells'], data['bestseller'], data['price'])
+                print(f"Step 6 - Element ID {element_id} data: {data}")
+            except Exception as exc:
+                print(f"Step 6 - Element ID {element_id} generated an exception: {exc}")
     
     # Step 7 - Resolve all potential issues with the data
     
     # Step 8 - export the data to the output file
+    
+    # Step 9 - close the database
+    database.close()
 
 if __name__ == '__main__':
     main()
