@@ -11,6 +11,7 @@ inevitably arise, particularly with larger builds.
 import sys
 import logging
 import argparse
+import time
 from database import *
 import concurrent.futures
 from parse import parse_xml
@@ -99,6 +100,7 @@ def main():
     logging.info(f"Step 2 complete - request design IDs (length {len(request_design_ids)}): {request_design_ids}")
     
     # Step 3 - Make the requests to bricklink for all the missing design IDs
+    start_time = time.time()
     database_insertions = 0
     with concurrent.futures.ThreadPoolExecutor() as executor:
         future_to_design_id = {executor.submit(get_color_dict_for_part, design_id): design_id for design_id in request_design_ids}
@@ -112,7 +114,10 @@ def main():
                         database_insertions += 1
             except Exception as exc:
                 logging.error(f"Step 3 - Design ID {design_id} generated an exception: {exc}")
-    logging.info(f"Step 3 complete - database insertions: {database_insertions}")
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    minutes, seconds = divmod(int(elapsed_time), 60)
+    logging.info(f"Step 3 complete - database insertions: {database_insertions}, time taken: {minutes} minutes and {seconds} seconds")
     
     # Step 4 - Create a master list of all potential element IDs
     master_element_ids = set()
@@ -126,6 +131,7 @@ def main():
     logging.info(f"Step 5 complete - request element IDs (length {len(request_element_ids)}): {request_element_ids}")
     
     # Step 6 - Make the requests to lego pick-a-brick for all the missing element IDs
+    start_time = time.time()
     database_insertions = 0
     with concurrent.futures.ThreadPoolExecutor() as executor:
         future_to_element_id = {executor.submit(get_lego_store_result_for_element_id, element_id): element_id for element_id in request_element_ids}
@@ -143,7 +149,10 @@ def main():
                     database_insertions += 1
             except Exception as exc:
                 logging.error(f"Step 6 - Element ID {element_id} generated an exception: {exc}")
-    logging.info(f"Step 6 complete - database insertions: {database_insertions}")
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    minutes, seconds = divmod(int(elapsed_time), 60)
+    logging.info(f"Step 6 complete - database insertions: {database_insertions}, time taken: {minutes} minutes and {seconds} seconds")
     
     # Step 7 - Resolve all potential issues with the data
     #   case 1 = part doesn't exist
@@ -222,8 +231,6 @@ def main():
 
     logging.info(f"Step 7.3 complete - Resolve method: {resolve_method} ({RESOLVE_METHODS[resolve_method]})")
         
-
-    
     # Step 8 - export the data to the output file
     
     # Step 9 - close the database
