@@ -131,6 +131,16 @@ def main():
                 print(f"Step 6 - Element ID {element_id} generated an exception: {exc}")
     
     # Step 7 - Resolve all potential issues with the data
+    #   case 1 = part doesn't exist
+    #   case 2 = part exists, one version
+    #   case 3 = part exists, multiple versions (likely 1 each for bestseller & 1 not)
+    # DECIDE - What do about parts in each of these cases?
+    # DECIDE - how to split up if reached maximum part count?
+    # FACT: 200 max lots for bestseller cart, $7 service fee for orders under $14,shipping $11.95
+    # FACT: 200 max lots for non-bestseller cart, $7 service fee for orders under $14, shipping $11.95
+    # FACT: If shipping both bestseller and non-bestseller, $18.95 shipping for both
+    # FACT: max quantity of a single item is 999
+    # FACT: If you have a large enough order, free shipping
     
     # Step 8 - export the data to the output file
     
