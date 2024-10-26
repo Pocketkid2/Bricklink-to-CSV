@@ -30,6 +30,7 @@ class DatabaseManager:
         self.cursor = self.connection.cursor()
         self.logger = logger_instance
         self._create_tables()
+        self.logger.info("Database connection established.")
 
     def _create_tables(self):
         """Create the necessary tables if they do not exist."""
@@ -50,6 +51,7 @@ class DatabaseManager:
         """Commit changes and close the database connection."""
         self.connection.commit()
         self.connection.close()
+        self.logger.info("Database connection closed.")
 
     def insert_bricklink_entry(self, element_id, design_id, color_code):
         """
@@ -60,7 +62,11 @@ class DatabaseManager:
             design_id (int): The design ID.
             color_code (int): The color code.
         """
-        self.cursor.execute('INSERT INTO bricklink_entries VALUES (?, ?, ?)', (element_id, design_id, color_code))
+        self.cursor.execute('INSERT OR IGNORE INTO bricklink_entries VALUES (?, ?, ?)', (element_id, design_id, color_code))
+        if self.cursor.rowcount == 0:
+            self.logger.info(f"Skipped existing BrickLink entry: {element_id}, {design_id}, {color_code}")
+        else:
+            self.logger.info(f"Inserted BrickLink entry: {element_id}, {design_id}, {color_code}")
 
     def insert_lego_pab_entry(self, element_id, lego_sells, bestseller, price):
         """
@@ -72,7 +78,11 @@ class DatabaseManager:
             bestseller (bool): Whether this item is a bestseller.
             price (float): The price of the item.
         """
-        self.cursor.execute('INSERT INTO lego_pab_entries VALUES (?, ?, ?, ?)', (element_id, lego_sells, bestseller, price))
+        self.cursor.execute('INSERT OR IGNORE INTO lego_pab_entries VALUES (?, ?, ?, ?)', (element_id, lego_sells, bestseller, price))
+        if self.cursor.rowcount == 0:
+            self.logger.info(f"Skipped existing LEGO Pick-a-Brick entry: {element_id}, {lego_sells}, {bestseller}, {price}")
+        else:
+            self.logger.info(f"Inserted LEGO Pick-a-Brick entry: {element_id}, {lego_sells}, {bestseller}, {price}")
 
     def get_bricklink_entry_by_design_id(self, design_id):
         """
@@ -85,7 +95,23 @@ class DatabaseManager:
             tuple: The row corresponding to the design ID, or None if not found.
         """
         self.cursor.execute('SELECT * FROM bricklink_entries WHERE design_id = ?', (design_id,))
+        self.logger.info(f"Queried BrickLink entry by design ID: {design_id}")
         return self.cursor.fetchone()
+    
+    def get_bricklink_entries_by_design_id_and_color_code(self, design_id, color_code):
+        """
+        Retrieve a BrickLink entry by design ID and color code.
+
+        Args:
+            design_id (int): The design ID.
+            color_code (int): The color code.
+
+        Returns:
+            tuple: The row corresponding to the design ID and color code, or None if not found.
+        """
+        self.cursor.execute('SELECT * FROM bricklink_entries WHERE design_id = ? AND color_code = ?', (design_id, color_code))
+        self.logger.info(f"Queried BrickLink entry by design ID and color code: {design_id}, {color_code}")
+        return self.cursor.fetchall()
 
     def get_lego_pab_entry_by_element_id(self, element_id):
         """
@@ -98,12 +124,15 @@ class DatabaseManager:
             tuple: The row corresponding to the element ID, or None if not found.
         """
         self.cursor.execute('SELECT * FROM lego_pab_entries WHERE element_id = ?', (element_id,))
+        self.logger.info(f"Queried LEGO Pick-a-Brick entry by element ID: {element_id}")
         return self.cursor.fetchone()
 
     def purge_bricklink_table(self):
         """Purge the BrickLink table."""
         self.cursor.execute('DELETE FROM bricklink_entries')
+        self.logger.warning("Purged BrickLink table.")
 
     def purge_lego_pab_table(self):
         """Purge the LEGO Pick-a-Brick table."""
         self.cursor.execute('DELETE FROM lego_pab_entries')
+        self.logger.warning("Purged LEGO Pick-a-Brick table.")
