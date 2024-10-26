@@ -1,8 +1,11 @@
 """
-Convert.
+Convert - The main flow.
 
-This module processes XML files and exports the data to CSV or JSON files.
-It also sets up logging and handles database operations.
+This is what you came here for. The main program that converts BrickLink XMLs
+into CSV/JSON that can be uploaded to LEGO's Pick-a-Brick store. It is a
+complex and lengthy process, because it involves web scraping to map the
+bricklink codes to the lego codes, and also tries to handle issues that
+inevitably arise, particularly with larger builds.
 """
 
 import sys
@@ -59,7 +62,32 @@ def main():
     args = parser.parse_args()
 
     logger = setup_logger(args.log_file)
-
+    
+    database = DatabaseManager(args.database_file, logger)
+    
+    # Don't actually convert if purge is requested
+    if args.purge_bricklink:
+        database.purge_bricklink_table()
+        return
+    if args.purge_lego_pab:
+        database.purge_lego_pab_table()
+        return
+    
+    # Step 1 - round up all design IDs
+    
+    # Step 2 - Find out which design IDs are NOT in the bricklink database table
+    
+    # Step 3 - Make the requests to bricklink for all the missing design IDs
+    
+    # Step 4 - Create a master list of all potential element IDs
+    
+    # Step 5 - Find out which element IDs are not in the leg pick-a-brick database table
+    
+    # Step 6 - Make the requests to lego pick-a-brick for all the missing element IDs
+    
+    # Step 7 - Resolve all potential issues with the data
+    
+    # Step 8 - export the data to the output file
 
 if __name__ == '__main__':
     main()
