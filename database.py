@@ -3,6 +3,7 @@
 This module provides the DatabaseManager class for managing the SQLite cache
 holding BrickLink and LEGO Pick-a-Brick data.
 """
+
 import sqlite3
 
 
