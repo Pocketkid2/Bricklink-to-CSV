@@ -8,13 +8,16 @@ bricklink codes to the lego codes, and also tries to handle issues that
 inevitably arise, particularly with larger builds.
 """
 
+import os
 import sys
+import math
 import logging
 import argparse
 import time
 from database import *
 import concurrent.futures
 from parse import parse_xml
+from export import export_csv, export_json, export_xml
 from request_bricklink import get_color_dict_for_part
 from request_lego_store import get_lego_store_result_for_element_id
 
@@ -25,6 +28,22 @@ RESOLVE_METHODS = {
     'C': 'Choose whichever has larger lot count',
     'D': 'Choose whichever has larger total part count',
 }
+
+
+def split_array_into_equal_chunks(array, num_chunks):
+    """
+    Break an array into num_chunks roughly equal pieces.
+
+    Args:
+        array (list): The array to be divided.
+        num_chunks (int): The number of chunks to divide the array into.
+
+    Returns:
+        list of lists: A list containing the chunks.
+    """
+    avg = len(array) / float(num_chunks)
+    chunks = [array[int(round(avg * i)): int(round(avg * (i + 1)))] for i in range(num_chunks)]
+    return chunks
 
 
 def setup_logger(log_file):
@@ -166,7 +185,8 @@ def main():
     # FACT: max quantity of a single item is 999
     # FACT: If you have a large enough order, free shipping
     
-    bucket_zero_not_available = []
+    not_available_final_list = []
+    not_available_total_count = 0
     bucket_one_available = []
     bucket_two_available = []
     
@@ -182,7 +202,8 @@ def main():
                 available_elements += 1
 
         if available_elements == 0:
-            bucket_zero_not_available.append(part)
+            not_available_final_list.append(part)
+            not_available_total_count += int(part['quantity'])
         elif available_elements == 1:
             bucket_one_available.append(part)
         elif available_elements == 2:
@@ -190,7 +211,7 @@ def main():
         else:
             logging.error(f"Part {part} has {available_elements} available elements from the store")
     
-    logging.info(f"Step 7.1 complete - bucket not available (length {len(bucket_zero_not_available)}): {bucket_zero_not_available}")
+    logging.info(f"Step 7.1 complete - bucket not available (length {len(not_available_final_list)}): {not_available_final_list}")
     logging.info(f"Step 7.1 complete - bucket one available (length {len(bucket_one_available)}): {bucket_one_available}")
     logging.info(f"Step 7.1 complete - bucket two available (length {len(bucket_two_available)}): {bucket_two_available}")
     
@@ -209,29 +230,112 @@ def main():
         for element_result in element_results:
             if element_result[LEGO_SELLS_COLUMN]:
                 if element_result[BESTSELLER_COLUMN]:
-                    bestseller_final_list += {'elementId': element_result[0], 'quantity': part['quantity']}
+                    bestseller_final_list.append({'elementId': element_result[0], 'quantity': part['quantity']})
                     bestseller_total_count += int(part['quantity'])
                 else:
-                    non_bestseller_final_list += {'elementId': element_result[0], 'quantity': part['quantity']}
+                    non_bestseller_final_list.append({'elementId': element_result[0], 'quantity': part['quantity']})
                     non_bestseller_total_count += int(part['quantity'])
 
     logging.info(f"Step 7.2 complete - In the 'one available' bucket, bestseller has {len(bestseller_final_list)} lots and {bestseller_total_count} total parts, non-bestseller has {len(non_bestseller_final_list)} lots and {non_bestseller_total_count} total parts")
     
-    # Step 7.3 - Resolve what to do with the "two available" parts
-    resolve_method = args.resolve_method
-    while resolve_method is None:
-        print("Please choose a method to resolve duplicate store options for a part:")
-        for key, value in RESOLVE_METHODS.items():
-            print(f"{key}: {value}")
-        key_submitted = input("Enter the letter corresponding to your choice: ").upper()
-        if key_submitted in RESOLVE_METHODS.keys():
-            resolve_method = key_submitted
-        else:
-            print("Invalid choice, please try again.")
-
-    logging.info(f"Step 7.3 complete - Resolve method: {resolve_method} ({RESOLVE_METHODS[resolve_method]})")
+    # Step 7.3 - Compare prices and max order quantity for each of the "two available" parts
+    PRICE_COLUMN = 6
+    MAX_ORDER_QUANTITY_COLUMN = 7
+    
+    for part in bucket_two_available:
+        element_results = database.match_bricklink_entries_to_lego_store_entries(part['design_id'], part['color_id'])
         
+        options = []
+        
+        for element_result in element_results:
+            if element_result[LEGO_SELLS_COLUMN]:
+                options.append({
+                    'elementId': element_result[0],
+                    'quantity': part['quantity'],
+                    'price': element_result[PRICE_COLUMN],
+                    'maxOrderQuantity': element_result[MAX_ORDER_QUANTITY_COLUMN],
+                    'bestseller': element_result[BESTSELLER_COLUMN]
+                })
+                logger.info(f"Comparing part {part} with element ID {element_result[0]} - Max Order Quantity: {element_result[MAX_ORDER_QUANTITY_COLUMN]}, BestSeller = {element_result[BESTSELLER_COLUMN]}, Price: {element_result[PRICE_COLUMN]} cents")
+            
+        print("You must choose one of the following options:")
+        for i, option in enumerate(options):
+            print(f"{i+1}. {option}")
+        option = None
+        if options[0]['price'] != options[1]['price']:
+            option = options[0] if options[0]['price'] < options[1]['price'] else options[1]
+        while option is None:
+            try:
+                submitted = int(input("Which option would you like to choose? "))
+                if submitted < 1 or submitted > len(options):
+                    print(f"Invalid option: {submitted}")
+                else:
+                    option = options[submitted - 1]
+            except ValueError as exc:
+                print(f"Invalid option: {exc}")
+                option = None
+
+        if option['bestseller']:
+            bestseller_final_list.append({'elementId': option['elementId'], 'quantity': option['quantity']})
+            bestseller_total_count += int(part['quantity'])
+        else:
+            non_bestseller_final_list.append({'elementId': option['elementId'], 'quantity': option['quantity']})
+            non_bestseller_total_count += int(part['quantity'])
+
+        logging.info(f"User chose option {option}")
+    
+    logger.info(f"Step 7.3 complete - Price and max order quantity comparison complete; bestseller now has {len(bestseller_final_list)} lots and {bestseller_total_count} total parts, non-bestseller has {len(non_bestseller_final_list)} lots and {non_bestseller_total_count} total parts")
+            
     # Step 8 - export the data to the output file
+    
+    # Step 8.1 - export the not available parts
+    not_available_filename = os.path.join(os.path.dirname(args.input_xml), os.path.splitext(os.path.basename(args.input_xml))[0] + '_not_available.xml')
+    export_xml(not_available_final_list, not_available_filename)
+    
+    # Step 8.2 - Break lists into sub-lists to keep each under 200 lots
+    bestseller_chunks = []
+    num_bestseller_chunks = 0
+    if (len(bestseller_final_list) / 200) > 1:
+        num_bestseller_chunks = math.ceil(len(bestseller_final_list) / 200)
+        bestseller_chunks = split_array_into_equal_chunks(bestseller_final_list, num_bestseller_chunks)
+    else:
+        num_bestseller_chunks = 1
+        bestseller_chunks = [bestseller_final_list]
+
+    non_bestseller_chunks = []
+    num_non_bestseller_chunks = 0
+    if (len(non_bestseller_final_list) / 200) > 1:
+        num_non_bestseller_chunks = math.ceil(len(non_bestseller_final_list) / 200)
+        non_bestseller_chunks = split_array_into_equal_chunks(non_bestseller_final_list, num_non_bestseller_chunks)
+    else:
+        num_non_bestseller_chunks = 1
+        non_bestseller_chunks = [non_bestseller_final_list]
+        
+    logger.info(f"Step 8.2 complete - bestseller list will be written in {num_bestseller_chunks} chunks, non-bestseller list will be written in {num_non_bestseller_chunks} chunks")
+    
+    # Step 8.3 - export all parts to CSV or JSON, breaking up the individual lists to be under 200 lots per delivery
+    export_function = None
+    export_extension = None
+    if args.output_file.endswith('.csv'):
+        export_function = export_csv
+        export_extension = 'csv'
+    elif args.output_file.endswith('.json'):
+        export_function = export_json
+        export_extension = 'json'
+    else:
+        logging.error(f"Invalid output file type: {args.output_file}")
+        
+    if export_function is not None:
+        for i in range(0, max(num_bestseller_chunks, num_non_bestseller_chunks)):
+            output_filename = os.path.join(os.path.dirname(args.output_file), os.path.splitext(os.path.basename(args.output_file))[0] + f'_order{i+1}.' + export_extension)
+            bestseller_chunk = []
+            non_bestseller_chunk = []
+            if i < num_bestseller_chunks:
+                bestseller_chunk = bestseller_chunks[i]
+            if i < num_non_bestseller_chunks:
+                non_bestseller_chunk = non_bestseller_chunks[i]
+            export_function(bestseller_chunk + non_bestseller_chunk, output_filename)
+            logger.info(f"Wrote {len(bestseller_chunk)} + {len(non_bestseller_chunk)} = {len(bestseller_chunk + non_bestseller_chunk)} entries to {output_filename}")
     
     # Step 9 - close the database
     database.close()
