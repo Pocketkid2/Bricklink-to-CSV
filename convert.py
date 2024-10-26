@@ -71,6 +71,7 @@ def main():
     parser.add_argument('-db', '--database_file', default='part_info.db', help='Path to the SQLite database file')
     parser.add_argument('-pb', '--purge_bricklink', action='store_true', help='Purge the BrickLink table in the database before processing the XML')
     parser.add_argument('-pl', '--purge_lego_store', action='store_true', help='Purge the LEGO Pick-a-Brick table in the database before processing the XML')
+    parser.add_argument('-r', '--resolve_method', default=None, choices=RESOLVE_METHODS.keys(), help='Method to resolve duplicate store options for a part (bestseller vs non-bestseller)')
     args = parser.parse_args()
 
     logger = setup_logger(args.log_file)
@@ -187,26 +188,40 @@ def main():
     # Step 7.2 - Find out how many "one available" options are bestseller vs not
     BESTSELLER_COLUMN = 5
 
-    bestseller_lot_count = 0
+    bestseller_final_list = []
     bestseller_total_count = 0
-    non_bestseller_lot_count = 0
+    
+    non_bestseller_final_list = []
     non_bestseller_total_count = 0
+
     for part in bucket_one_available:
         element_results = database.match_bricklink_entries_to_lego_store_entries(part['design_id'], part['color_id'])
 
         for element_result in element_results:
             if element_result[LEGO_SELLS_COLUMN]:
                 if element_result[BESTSELLER_COLUMN]:
-                    bestseller_lot_count += 1
+                    bestseller_final_list += {'elementId': element_result[0], 'quantity': part['quantity']}
                     bestseller_total_count += int(part['quantity'])
                 else:
-                    non_bestseller_lot_count += 1
+                    non_bestseller_final_list += {'elementId': element_result[0], 'quantity': part['quantity']}
                     non_bestseller_total_count += int(part['quantity'])
 
-    logging.info(f"Step 7.2 complete - In the 'one available' bucket, bestseller has {bestseller_lot_count} lots and {bestseller_total_count} total parts, non-bestseller has {non_bestseller_lot_count} lots and {non_bestseller_total_count} total parts")
+    logging.info(f"Step 7.2 complete - In the 'one available' bucket, bestseller has {len(bestseller_final_list)} lots and {bestseller_total_count} total parts, non-bestseller has {len(non_bestseller_final_list)} lots and {non_bestseller_total_count} total parts")
     
     # Step 7.3 - Resolve what to do with the "two available" parts
-    
+    resolve_method = args.resolve_method
+    while resolve_method is None:
+        print("Please choose a method to resolve duplicate store options for a part:")
+        for key, value in RESOLVE_METHODS.items():
+            print(f"{key}: {value}")
+        key_submitted = input("Enter the letter corresponding to your choice: ").upper()
+        if key_submitted in RESOLVE_METHODS.keys():
+            resolve_method = key_submitted
+        else:
+            print("Invalid choice, please try again.")
+
+    logging.info(f"Step 7.3 complete - Resolve method: {resolve_method} ({RESOLVE_METHODS[resolve_method]})")
+        
 
     
     # Step 8 - export the data to the output file
