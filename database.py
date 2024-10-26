@@ -142,10 +142,10 @@ class DatabaseManager:
 
     def purge_bricklink_table(self):
         """Purge the BrickLink table."""
-        self.cursor.execute('DELETE FROM bricklink_entries')
+        self.cursor.execute('DROP TABLE bricklink_entries')
         self.logger.warning("[DB] Purged BrickLink table.")
 
     def purge_lego_store_table(self):
         """Purge the LEGO Pick-a-Brick table."""
-        self.cursor.execute('DELETE FROM lego_store_entries')
+        self.cursor.execute('DROP TABLE lego_store_entries')
         self.logger.warning("[DB] Purged LEGO Pick-a-Brick table.")
