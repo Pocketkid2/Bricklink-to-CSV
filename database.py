@@ -99,7 +99,7 @@ class DatabaseManager:
         self.cursor.execute('SELECT * FROM bricklink_entries WHERE design_id = ?', (design_id,))
         self.logger.info(f"[DB] Queried BrickLink entry by design ID: {design_id}")
         return self.cursor.fetchone()
-    
+
     def get_bricklink_entries_by_design_id_and_color_code(self, design_id, color_code):
         """
         Retrieve a BrickLink entry by design ID and color code.
@@ -130,11 +130,21 @@ class DatabaseManager:
         return self.cursor.fetchone()
 
     def match_bricklink_entries_to_lego_store_entries(self, design_id, color_code):
+        """
+        Match BrickLink entries to LEGO Pick-a-Brick entries by design ID and color code.
+
+        Args:
+            design_id (int): The design ID.
+            color_code (int): The color code.
+
+        Returns:
+            tuple array: The matched rows, or an empty array if no matches are found.
+        """
         self.cursor.execute('''
                             select * from bricklink_entries
                             inner join lego_store_entries
                             on bricklink_entries.element_id = lego_store_entries.element_id
-                            where bricklink_entries.design_id = ? 
+                            where bricklink_entries.design_id = ?
                             and bricklink_entries.color_code = ?
                             ''', (design_id, color_code))
         self.logger.info(f"[DB] Matched BrickLink entries to LEGO Pick-a-Brick entries by design ID and color code: {design_id}, {color_code}")
