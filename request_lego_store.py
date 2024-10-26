@@ -12,7 +12,7 @@ query PickABrickQuery($input: ElementQueryInput!) {
     count
   }
 }
- fragment ElementLeaf on SearchResultElement {
+fragment ElementLeaf on SearchResultElement {
   id
   maxOrderQuantity
   deliveryChannel

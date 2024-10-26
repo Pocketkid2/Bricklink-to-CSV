@@ -44,7 +44,8 @@ class DatabaseManager:
             element_id INTEGER NOT NULL PRIMARY KEY,
             lego_sells BOOLEAN NOT NULL,
             bestseller BOOLEAN NOT NULL,
-            price DECIMAL(10, 2) NOT NULL
+            price INTEGER NOT NULL,
+            max_order_quantity INTEGER NOT NULL
         )''')
 
     def close(self):
