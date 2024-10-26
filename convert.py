@@ -62,7 +62,7 @@ def main():
     parser.add_argument('-l', '--log_file', default='log.txt', help='Path to the log file')
     parser.add_argument('-db', '--database_file', default='part_info.db', help='Path to the SQLite database file')
     parser.add_argument('-pb', '--purge_bricklink', action='store_true', help='Purge the BrickLink table in the database before processing the XML')
-    parser.add_argument('-pl', '--purge_lego_pab', action='store_true', help='Purge the LEGO Pick-a-Brick table in the database before processing the XML')
+    parser.add_argument('-pl', '--purge_lego_store', action='store_true', help='Purge the LEGO Pick-a-Brick table in the database before processing the XML')
     args = parser.parse_args()
 
     logger = setup_logger(args.log_file)
@@ -73,8 +73,8 @@ def main():
     if args.purge_bricklink:
         database.purge_bricklink_table()
         return
-    if args.purge_lego_pab:
-        database.purge_lego_pab_table()
+    if args.purge_lego_store:
+        database.purge_lego_store_table()
         return
     
     # Step 0 - Parse input XML file
@@ -110,7 +110,7 @@ def main():
         print(f"Step 4 - element IDs for design ID {part['design_id']} and color code {part['color_id']}: {element_ids}")
     
     # Step 5 - Find out which element IDs are not in the lego pick-a-brick database table
-    request_element_ids = {element_id for element_id in master_element_ids if not database.get_lego_pab_entry_by_element_id(element_id)}
+    request_element_ids = {element_id for element_id in master_element_ids if not database.get_lego_store_entry_by_element_id(element_id)}
     print(f"Step 5 - request element IDs: {request_element_ids}")
     
     # Step 6 - Make the requests to lego pick-a-brick for all the missing element IDs
@@ -121,11 +121,11 @@ def main():
             try:
                 data = future.result()
                 if data is None:
-                    database.insert_lego_pab_entry(element_id, lego_sells=False, bestseller=None, price=None, max_order_quantity=None)
+                    database.insert_lego_store_entry(element_id, lego_sells=False, bestseller=None, price=None, max_order_quantity=None)
                 else:
                     if data['deliveryChannel'] not in ['pab', 'bap']:
                         raise ValueError(f"Invalid delivery channel: {data['deliveryChannel']}")
-                    database.insert_lego_pab_entry(element_id, lego_sells=True, bestseller=(data['deliveryChannel'] == 'pab'), price=data['price']['centAmount'], max_order_quantity=data['maxOrderQuantity'])
+                    database.insert_lego_store_entry(element_id, lego_sells=True, bestseller=(data['deliveryChannel'] == 'pab'), price=data['price']['centAmount'], max_order_quantity=data['maxOrderQuantity'])
                 print(f"Step 6 - Element ID {element_id} data: {data}")
             except Exception as exc:
                 print(f"Step 6 - Element ID {element_id} generated an exception: {exc}")
@@ -141,6 +141,17 @@ def main():
     # FACT: If shipping both bestseller and non-bestseller, $18.95 shipping for both
     # FACT: max quantity of a single item is 999
     # FACT: If you have a large enough order, free shipping
+    bucket_zero = []
+    bucket_one = []
+    bucket_two = []
+    for index, part in enumerate(bricklink_xml_partslist):
+        element_ids = [element_id for (element_id, _, _) in database.get_bricklink_entries_by_design_id_and_color_code(part['design_id'], part['color_id'])]
+        for element_id in element_ids:
+            lego_store_entry = database.get_lego_store_entry_by_element_id(element_id)
+            if lego_store_entry is None:
+                print(f"Step 7 - Element ID {element_id} does not exist in the LEGO Pick-a-Brick database")
+            else:
+                print(f"Step 7 - Element ID {element_id} data: {lego_store_entry}")
     
     # Step 8 - export the data to the output file
     

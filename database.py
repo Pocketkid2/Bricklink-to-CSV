@@ -40,7 +40,7 @@ class DatabaseManager:
             color_code INTEGER NOT NULL
         )''')
 
-        self.cursor.execute('''CREATE TABLE IF NOT EXISTS lego_pab_entries (
+        self.cursor.execute('''CREATE TABLE IF NOT EXISTS lego_store_entries (
             element_id INTEGER NOT NULL PRIMARY KEY,
             lego_sells BOOLEAN NOT NULL,
             bestseller BOOLEAN NOT NULL,
@@ -69,7 +69,7 @@ class DatabaseManager:
         else:
             self.logger.info(f"Inserted BrickLink entry: {element_id}, {design_id}, {color_code}")
 
-    def insert_lego_pab_entry(self, element_id, lego_sells, bestseller, price, max_order_quantity):
+    def insert_lego_store_entry(self, element_id, lego_sells, bestseller, price, max_order_quantity):
         """
         Insert a new entry into the LEGO Pick-a-Brick table.
 
@@ -80,7 +80,7 @@ class DatabaseManager:
             price (int): The price of the item, in cents.
             max_order_quantity (int): The maximum order quantity.
         """
-        self.cursor.execute('INSERT OR IGNORE INTO lego_pab_entries VALUES (?, ?, ?, ?, ?)', (element_id, lego_sells, bestseller, price, max_order_quantity))
+        self.cursor.execute('INSERT OR IGNORE INTO lego_store_entries VALUES (?, ?, ?, ?, ?)', (element_id, lego_sells, bestseller, price, max_order_quantity))
         if self.cursor.rowcount == 0:
             self.logger.info(f"Skipped existing LEGO Pick-a-Brick entry: {element_id}, {lego_sells}, {bestseller}, {price}, {max_order_quantity}")
         else:
@@ -115,7 +115,7 @@ class DatabaseManager:
         self.logger.info(f"Queried BrickLink entry by design ID and color code: {design_id}, {color_code}")
         return self.cursor.fetchall()
 
-    def get_lego_pab_entry_by_element_id(self, element_id):
+    def get_lego_store_entry_by_element_id(self, element_id):
         """
         Retrieve a LEGO Pick-a-Brick entry by element ID.
 
@@ -125,7 +125,7 @@ class DatabaseManager:
         Returns:
             tuple: The row corresponding to the element ID, or None if not found.
         """
-        self.cursor.execute('SELECT * FROM lego_pab_entries WHERE element_id = ?', (element_id,))
+        self.cursor.execute('SELECT * FROM lego_store_entries WHERE element_id = ?', (element_id,))
         self.logger.info(f"Queried LEGO Pick-a-Brick entry by element ID: {element_id}")
         return self.cursor.fetchone()
 
@@ -134,7 +134,7 @@ class DatabaseManager:
         self.cursor.execute('DELETE FROM bricklink_entries')
         self.logger.warning("Purged BrickLink table.")
 
-    def purge_lego_pab_table(self):
+    def purge_lego_store_table(self):
         """Purge the LEGO Pick-a-Brick table."""
-        self.cursor.execute('DELETE FROM lego_pab_entries')
+        self.cursor.execute('DELETE FROM lego_store_entries')
         self.logger.warning("Purged LEGO Pick-a-Brick table.")

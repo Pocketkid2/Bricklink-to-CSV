@@ -49,7 +49,7 @@ def main():
     Main function to handle command line argument and make the GraphQL request.
     """
     if len(sys.argv) != 2:
-        print("Usage: python request_lego_pab.py <element_id>")
+        print("Usage: python request_lego_store.py <element_id>")
         sys.exit(1)
 
     element_id = int(sys.argv[1])
