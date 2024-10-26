@@ -35,7 +35,7 @@ def parse_xml(path):
             elif data.tag == 'MINQTY':
                 part['quantity'] = data.text
                 total_quantity += int(data.text)
-            unique_elements.add(f"{part['design_id']}/{part['color_id']}")
+        unique_elements.add(f"{part['design_id']}/{part['color_id']}")
         parts.append(part)
     logging.info(f"Found {len(unique_designs)} unique designs, "
                  f"{len(unique_elements)} unique elements, "
