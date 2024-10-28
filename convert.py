@@ -83,6 +83,8 @@ def main():
     parser.add_argument('-db', '--database_file', default='part_info.db', help='Path to the SQLite database file')
     parser.add_argument('-pb', '--purge_bricklink', action='store_true', help='Purge the BrickLink table in the database before processing the XML')
     parser.add_argument('-pl', '--purge_lego_store', action='store_true', help='Purge the LEGO Pick-a-Brick table in the database before processing the XML')
+    parser.add_argument('-new', '--bricklink_new', action='store_true', help='Set part condition to NEW for unavailable items exported back to BrickLink XML')
+    parser.add_argument('-used', '--bricklink_used', action='store_true', help='Set part condition to USED for unavailable items exported back to BrickLink XML')
     args = parser.parse_args()
 
     logger = setup_logger(args.log_file)
@@ -279,7 +281,14 @@ def main():
 
     # Step 8.1 - export the not available parts
     not_available_filename = os.path.join(os.path.dirname(args.input_xml), os.path.splitext(os.path.basename(args.input_xml))[0] + '_not_available.xml')
-    export_xml(not_available_final_list, not_available_filename)
+    condition = None
+    if args.bricklink_new:
+        condition = 'N'
+    elif args.bricklink_used:
+        condition = 'U'
+    else:
+        condition = 'X'
+    export_xml(not_available_final_list, not_available_filename, condition)
 
     # Step 8.2 - Break lists into sub-lists to keep each under 200 lots
     bestseller_chunks = []
