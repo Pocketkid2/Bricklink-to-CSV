@@ -38,7 +38,7 @@ def export_json(data, path):
     logging.info(f"Exported {len(data)} entries to {path}")
 
 
-def export_xml(data, path):
+def export_xml(data, path, condition='X'):
     """
     Save partslist data to an XML file.
 
@@ -46,17 +46,23 @@ def export_xml(data, path):
         data (list of dict): The partslist data to be exported.
         path (str): The file path where the XML file will be saved.
     """
+    if condition not in ['X', 'N', 'U']:
+        raise ValueError("Condition must be one of 'X' (don't care), 'N' (new), or 'U' (used)")
     with open(path, 'w') as xml_file:
         xml_file.write('<?xml version="1.0" encoding="UTF-8"?>\n')
         xml_file.write('<INVENTORY>\n')
         for entry in data:
+            type = entry['type']
+            design_id = entry['design_id']
+            color_id = entry['color_id']
+            quantity = entry['quantity']
             xml_file.write('<ITEM>\n')
-            xml_file.write('<ITEMTYPE>P</ITEMTYPE>\n')
-            xml_file.write(f'<ITEMID>{entry['design_id']}</ITEMID>\n')
-            xml_file.write(f'<COLOR>{entry['color_id']}</COLOR>\n')
+            xml_file.write('<ITEMTYPE>{type}</ITEMTYPE>\n')
+            xml_file.write(f'<ITEMID>{design_id}</ITEMID>\n')
+            xml_file.write(f'<COLOR>{color_id}</COLOR>\n')
             xml_file.write('<MAXPRICE>-1.0000</MAXPRICE>\n')
-            xml_file.write(f'<MINQTY>{entry['quantity']}</MINQTY>\n')
-            xml_file.write('<CONDITION>X</CONDITION>\n')
+            xml_file.write(f'<MINQTY>{quantity}</MINQTY>\n')
+            xml_file.write('<CONDITION>{condition}</CONDITION>\n')
             xml_file.write('<NOTIFY>N</NOTIFY>\n')
             xml_file.write('</ITEM>\n')
         xml_file.write('</INVENTORY>\n')

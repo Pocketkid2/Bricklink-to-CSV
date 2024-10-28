@@ -1,32 +1,69 @@
-# BrickLink XML to LEGO Pick-a-Brick CSV/JSON
+# BrickLink to LEGO Pick-a-Brick Converter
 
-## The problem
-Most LEGO builds published online give you an XML file to upload to BrickLink so you can search stores for the parts. Which is great, except that sometimes the LEGO pick-a-brick store is actually cheaper, particularly for builds with large numbers of simple pieces where you want to bulk order.
+## Introduction
 
-Unfortunately, this is not as simple as converting the XML data to CSV/JSON, as BrickLink focuses entirely on Design ID (unique to part shape/mold) and Color code, whereas the LEGO site is looking for Element ID (unique to combination of mold and color and any other markings or configuration), which is not trivial to find. Sometimes it is the design id + color code, but other times it is something completely different.
+This tool is designed to help LEGO enthusiasts convert their BrickLink XML parts lists into a format that can be uploaded to LEGO's Pick-a-Brick store. This process involves web scraping to map BrickLink codes to LEGO codes and handles various issues that may arise, especially with larger builds. Disclaimer: Most partslists will probably contain items that LEGO Pick-A-Brick does not sell, and in that case, a new BrickLink XML partslist will be created containing just those parts which you can feed back into BrickLink.
 
-## The solution
-The good news is, BrickLink does keep track of which parts are available in which colors, and users have reported what the "part color code" is (element ID), and if we can figure out how to map the design ID + color code to that element ID, we can be successful. Whether or not we can use the BrickLink API or will have to webscrape for it (since it appears to be a very informal reporting system) remains to be seen.
+## Purpose
 
-## Resources
-1. Bricklink Color Guide - This provides the mapping of Color ID to Color Name and other information that we don't need
+The main purpose of this project is to:
+1. Convert BrickLink XML parts lists into CSV or JSON files.
+2. Map BrickLink part codes to LEGO part codes.
+3. Handle potential issues with data conversion and ensure compatibility with LEGO's Pick-a-Brick store.
+
+## How It Works
+
+The script performs the following steps:
+
+1. **Parse the Input XML File**: Reads the BrickLink XML parts list.
+2. **Identify Unique Design IDs**: Finds all unique design IDs from the parts list.
+3. **Check Database for Existing Entries**: Determines which design IDs are not already in the local database.
+4. **Fetch Missing Design IDs from BrickLink**: Requests missing design IDs from BrickLink and updates the database.
+5. **Create a Master List of Element IDs**: Compiles a list of all potential LEGO element IDs.
+6. **Check Database for LEGO Store Entries**: Identifies which element IDs are not in the LEGO Pick-a-Brick database.
+7. **Fetch Missing Element IDs from LEGO Store**: Requests missing element IDs from LEGO's Pick-a-Brick store and updates the database.
+8. **Resolve Data Issues**: Handles any issues with the data, such as parts not available in the LEGO store.
+9. **Export Data**: Exports the final data to CSV or JSON files.
+
+## How to Use
+
+### Prerequisites
+
+- Python installed on your computer.
+- Required Python libraries installed (e.g., `requests`, `beautifulsoup4`, `concurrent.futures`).
+
+### Steps to Run the Script
+
+1. **Prepare Your Environment**:
+   - Ensure you have Python installed.
+   - Install the required libraries using the following command:
+     ```sh
+     pip install -r requirements.txt
+     ```
+
+2. **Prepare Your Input XML File**:
+   - Obtain your BrickLink XML parts list and save it to a file. When viewing the list in the browser, just click the "Download" button and mark the location.
+
+3. **Run the Script**:
+   - Open your terminal or command prompt.
+   - Navigate to the directory where the script is located.
+   - Run the script with the following command:
+     ```sh
+     python convert.py input.xml output.csv
+     ```
+   - Replace `input.xml` with the path to your input XML file and `output.csv` with the desired output file path.
+
+### Command-Line Arguments
+
+- `input_xml`: Path to the input XML file.
+- `output_file`: Path to the output file (CSV or JSON).
+- `-l, --log_file`: Path to the log file (default: `log.txt`).
+- `-db, --database_file`: Path to the SQLite database file (default: `part_info.db`).
+- `-pb, --purge_bricklink`: Purge the BrickLink table in the database before processing the XML.
+- `-pl, --purge_lego_store`: Purge the LEGO Pick-a-Brick table in the database before processing the XML.
+
+### Example Usage
+
+```sh
+python convert.py input.xml output.csv -l my_log.txt -db my_database.db
 ```
-https://www.bricklink.com/catalogColors.asp
-```
-2. Bricklink Color Images (per-part) - This provides a table of Color Name to "Part Color Code" (Element ID) mappings
-```
-https://www.bricklink.com/catalogColors.asp?itemType=P&itemNo=32062
-```
-
-## Current functionality
-1. Can choose between LEGO Pick-a-Brick JSON or CSV
-2. Normal parts work beautifully; printed and rare parts, not so much, but that's to be expected
-3. Conversion can take some time (15-20 for large lists) but progress is displayed
-4. Webpage results from BrickLink are cached so the same web request does not need to be made again (the primary speed bottleneck)
-
-## Known issues
-1. Cache stores webpage results, leading to much larger cache file size than is necessary
-2. No error printout if the algorithm can't find Element IDs
-3. No way of checking if LEGO actually sells given Element ID
-4. No way of checking if LEGO accepts more than one Element ID, leading to potential duplicates
-5. Parallelize web requests?

@@ -23,21 +23,37 @@ def parse_xml(path):
     parts = []
     unique_designs = set()
     unique_elements = set()
+    non_parts = set()
     total_quantity = 0
     for item in root:
         part = {}
         for data in item:
-            if data.tag == 'ITEMID':
+            if data.tag == 'ITEMTYPE':
+                part['type'] = data.text
+            elif data.tag == 'ITEMID':
                 part['design_id'] = data.text
-                unique_designs.add(data.text)
+                if part['type'] == 'P':
+                    unique_designs.add(data.text)
+                else:
+                    logging.warning(f"Found non-part design ID {data.text} in {path}")
+                    non_parts.add(data.text)
             elif data.tag == 'COLOR':
                 part['color_id'] = data.text
+            elif data.tag == 'MAXPRICE':
+                part['price'] = data.text
             elif data.tag == 'MINQTY':
                 part['quantity'] = data.text
-                total_quantity += int(data.text)
-        unique_elements.add(f"{part['design_id']}/{part['color_id']}")
-        parts.append(part)
+                if part['type'] == 'P':
+                    total_quantity += int(data.text)
+        design_id = part.get('design_id')
+        color_id = part.get('color_id')
+        if design_id and color_id:
+            unique_elements.add(f"{design_id}/{color_id}")
+            parts.append(part)
+        else:
+            logging.warning(f"Missing color_id for design_id {design_id} in {path}")
     logging.info(f"Found {len(unique_designs)} unique designs, "
                  f"{len(unique_elements)} unique elements, "
                  f"with {total_quantity} total quantity in {path}")
+    logging.info(f"Found {len(non_parts)} non-part design IDs in {path}")
     return parts
