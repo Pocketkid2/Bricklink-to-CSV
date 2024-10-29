@@ -57,12 +57,12 @@ def export_xml(data, path, condition='X'):
             color_id = entry['color_id']
             quantity = entry['quantity']
             xml_file.write('<ITEM>\n')
-            xml_file.write('<ITEMTYPE>{type}</ITEMTYPE>\n')
+            xml_file.write(f'<ITEMTYPE>{type}</ITEMTYPE>\n')
             xml_file.write(f'<ITEMID>{design_id}</ITEMID>\n')
             xml_file.write(f'<COLOR>{color_id}</COLOR>\n')
             xml_file.write('<MAXPRICE>-1.0000</MAXPRICE>\n')
             xml_file.write(f'<MINQTY>{quantity}</MINQTY>\n')
-            xml_file.write('<CONDITION>{condition}</CONDITION>\n')
+            xml_file.write(f'<CONDITION>{condition}</CONDITION>\n')
             xml_file.write('<NOTIFY>N</NOTIFY>\n')
             xml_file.write('</ITEM>\n')
         xml_file.write('</INVENTORY>\n')
