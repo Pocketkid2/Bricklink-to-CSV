@@ -17,6 +17,7 @@ import time
 from database import *
 import concurrent.futures
 from parse import parse_xml
+from datetime import datetime
 from export import export_csv, export_json, export_xml
 from request_bricklink import get_color_dict_for_part
 from request_lego_store import get_lego_store_result_for_element_id
@@ -78,7 +79,7 @@ def main():
     """
     parser = argparse.ArgumentParser(description='Process XML and export to CSV or JSON.')
     parser.add_argument('input_xml_file', help='Path to the input XML file')
-    parser.add_argument('-l', '--log_file', default='log.txt', help='Path to the log file')
+    parser.add_argument('-ld', '--log_dir', default='logs', help='Path to the folder where log files will be created')
     parser.add_argument('-db', '--database_file', default='part_info.db', help='Path to the SQLite database file')
     parser.add_argument('-pb', '--purge_bricklink', action='store_true', help='Purge the BrickLink table in the database before processing the XML')
     parser.add_argument('-pl', '--purge_lego_store', action='store_true', help='Purge the LEGO Pick-a-Brick table in the database before processing the XML')
@@ -86,7 +87,11 @@ def main():
     parser.add_argument('-used', '--bricklink_used', action='store_true', help='Set part condition to USED for unavailable items exported back to BrickLink XML')
     args = parser.parse_args()
 
-    logger = setup_logger(args.log_file)
+    input_basename = os.path.splitext(os.path.basename(args.input_xml_file))[0]
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    logfile_name = os.path.join(args.log_dir, f"convert_{input_basename}_{timestamp}.txt")
+
+    logger = setup_logger(logfile_name)
 
     database = DatabaseManager(args.database_file, logger)
 
@@ -279,7 +284,7 @@ def main():
     # Step 8 - export the data to the output file
 
     # Step 8.1 - export the not available parts
-    not_available_filename = os.path.splitext(args.input_xml_file) + '_not_available.xml'
+    not_available_filename = os.path.splitext(args.input_xml_file)[0] + '_not_available.xml'
     condition = None
     if args.bricklink_new:
         condition = 'N'
