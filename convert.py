@@ -77,8 +77,7 @@ def main():
     file to export data to CSV or JSON.
     """
     parser = argparse.ArgumentParser(description='Process XML and export to CSV or JSON.')
-    parser.add_argument('input_xml', help='Path to the input XML file')
-    parser.add_argument('output_file', help='Path to the output file')
+    parser.add_argument('input_xml_file', help='Path to the input XML file')
     parser.add_argument('-l', '--log_file', default='log.txt', help='Path to the log file')
     parser.add_argument('-db', '--database_file', default='part_info.db', help='Path to the SQLite database file')
     parser.add_argument('-pb', '--purge_bricklink', action='store_true', help='Purge the BrickLink table in the database before processing the XML')
@@ -100,7 +99,7 @@ def main():
         return
 
     # Step 0 - Parse input XML file
-    bricklink_xml_partslist = parse_xml(args.input_xml)
+    bricklink_xml_partslist = parse_xml(args.input_xml_file)
     logging.info(f"Step 0 complete - bricklink XML partslist (length {len(bricklink_xml_partslist)}): {bricklink_xml_partslist}")
 
     # Step 1 - round up all design IDs
@@ -280,7 +279,7 @@ def main():
     # Step 8 - export the data to the output file
 
     # Step 8.1 - export the not available parts
-    not_available_filename = os.path.join(os.path.dirname(args.input_xml), os.path.splitext(os.path.basename(args.input_xml))[0] + '_not_available.xml')
+    not_available_filename = os.path.splitext(args.input_xml_file) + '_not_available.xml'
     condition = None
     if args.bricklink_new:
         condition = 'N'
@@ -313,21 +312,10 @@ def main():
                   will be written in {num_non_bestseller_chunks} chunks")
 
     # Step 8.3 - export all parts to CSV or JSON, breaking up the individual lists to be under 200 lots per delivery
-    export_function = None
-    export_extension = None
-    if args.output_file.endswith('.csv'):
-        export_function = export_csv
-        export_extension = 'csv'
-    elif args.output_file.endswith('.json'):
-        export_function = export_json
-        export_extension = 'json'
-    else:
-        logging.error(f"Invalid output file type: {args.output_file}")
-
-    if export_function is not None:
+    for export_function in [export_csv, export_json]:
+        file_extension = export_function.__name__.split('_')[1]
         for i in range(0, max(num_bestseller_chunks, num_non_bestseller_chunks)):
-            output_filename = os.path.join(os.path.dirname(args.output_file),
-                                           os.path.splitext(os.path.basename(args.output_file))[0] + f'_order{i+1}.' + export_extension)
+            output_filename = os.path.splitext(args.input_xml_file)[0] + f'_order{i+1}.' + file_extension
             bestseller_chunk = []
             non_bestseller_chunk = []
             if i < num_bestseller_chunks:
