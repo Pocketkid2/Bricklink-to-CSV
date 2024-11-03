@@ -1,6 +1,5 @@
-# BrickLink to LEGO Pick-a-Brick Converter
+# BrickLink XML partslist to LEGO Pick-a-Brick CSV/JSON partslist converter
 
-<<<<<<< Updated upstream
 ## Introduction
 
 This tool is designed to help LEGO enthusiasts convert their BrickLink XML parts lists into a format that can be uploaded to LEGO's Pick-a-Brick store. This process involves web scraping to map BrickLink codes to LEGO codes and handles various issues that may arise, especially with larger builds. Disclaimer: Most partslists will probably contain items that LEGO Pick-A-Brick does not sell, and in that case, a new BrickLink XML partslist will be created containing just those parts which you can feed back into BrickLink.
@@ -68,6 +67,3 @@ The script performs the following steps:
 ```sh
 python convert.py input.xml output.csv -l my_log.txt -db my_database.db
 ```
-=======
-## 
->>>>>>> Stashed changes
