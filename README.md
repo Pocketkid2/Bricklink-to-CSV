@@ -1,69 +1,53 @@
 # BrickLink XML partslist to LEGO Pick-a-Brick CSV/JSON partslist converter
 
-## Introduction
+## Abstract
 
-This tool is designed to help LEGO enthusiasts convert their BrickLink XML parts lists into a format that can be uploaded to LEGO's Pick-a-Brick store. This process involves web scraping to map BrickLink codes to LEGO codes and handles various issues that may arise, especially with larger builds. Disclaimer: Most partslists will probably contain items that LEGO Pick-A-Brick does not sell, and in that case, a new BrickLink XML partslist will be created containing just those parts which you can feed back into BrickLink.
+This project is for people who want to convert their LEGO partslists (usually for custom builds) that are stored in a BrickLink-compatible XML file into a format that is compatible with LEGO's online Pick-A-Brick store. This is useful because LEGO's Pick-A-Brick store has a wide range of basic parts in many colors, and when buying large quantities this can actually save you money.
 
-## Purpose
+This program works by mapping BrickLink Design IDs and Color IDs to LEGO Element IDs that are found in their store. Any parts that are not available on the LEGO Pick-A-Brick store will be re-exported back to a separate XML partslist for separate buying. If the LEGO Pick-A-Brick store has more than one available option for a particular piece, it will choose the cheapest option, and if the price is the same, it will let you pick between the "Bestseller" store (located in the US with faster shipping) or the non-Bestseller store (located in the Netherlands with slow shipping).
 
-The main purpose of this project is to:
-1. Convert BrickLink XML parts lists into CSV or JSON files.
-2. Map BrickLink part codes to LEGO part codes.
-3. Handle potential issues with data conversion and ensure compatibility with LEGO's Pick-a-Brick store.
+The LEGO Pick-A-Brick store can handle either a CSV or JSON file, and both will be created. One order from the LEGO Pick-A-Brick store can have a maximum of 400 unique elements, 200 from the "Bestseller" store, and 200 from the non-Bestseller store. This program will account for this by splitting orders that would be too large.
 
-## How It Works
+## Tool 1: `convert.py`
 
-The script performs the following steps:
+### Abstract
 
-1. **Parse the Input XML File**: Reads the BrickLink XML parts list.
-2. **Identify Unique Design IDs**: Finds all unique design IDs from the parts list.
-3. **Check Database for Existing Entries**: Determines which design IDs are not already in the local database.
-4. **Fetch Missing Design IDs from BrickLink**: Requests missing design IDs from BrickLink and updates the database.
-5. **Create a Master List of Element IDs**: Compiles a list of all potential LEGO element IDs.
-6. **Check Database for LEGO Store Entries**: Identifies which element IDs are not in the LEGO Pick-a-Brick database.
-7. **Fetch Missing Element IDs from LEGO Store**: Requests missing element IDs from LEGO's Pick-a-Brick store and updates the database.
-8. **Resolve Data Issues**: Handles any issues with the data, such as parts not available in the LEGO store.
-9. **Export Data**: Exports the final data to CSV or JSON files.
+This python script is the main entrypoint for the project, and does exactly what is described above. All results from web requests to BrickLink and LEGO Pick-A-Brick store are cached in a SQLite database file to speed up execution time as you continue to use the program. The output CSV and JSON files will have the same basename and path as the input XML file. You may or may not be prompted to select which LEGO Pick-A-Brick store you want a certain part to come from, if it exists in both stores for the same price.
 
-## How to Use
+### Python requirements
 
-### Prerequisites
-
-- Python installed on your computer.
-- Required Python libraries installed (e.g., `requests`, `beautifulsoup4`, `concurrent.futures`).
-
-### Steps to Run the Script
-
-1. **Prepare Your Environment**:
-   - Ensure you have Python installed.
-   - Install the required libraries using the following command:
-     ```sh
-     pip install -r requirements.txt
-     ```
-
-2. **Prepare Your Input XML File**:
-   - Obtain your BrickLink XML parts list and save it to a file. When viewing the list in the browser, just click the "Download" button and mark the location.
-
-3. **Run the Script**:
-   - Open your terminal or command prompt.
-   - Navigate to the directory where the script is located.
-   - Run the script with the following command:
-     ```sh
-     python convert.py input.xml output.csv
-     ```
-   - Replace `input.xml` with the path to your input XML file and `output.csv` with the desired output file path.
-
-### Command-Line Arguments
-
-- `input_xml`: Path to the input XML file.
-- `output_file`: Path to the output file (CSV or JSON).
-- `-l, --log_file`: Path to the log file (default: `log.txt`).
-- `-db, --database_file`: Path to the SQLite database file (default: `part_info.db`).
-- `-pb, --purge_bricklink`: Purge the BrickLink table in the database before processing the XML.
-- `-pl, --purge_lego_store`: Purge the LEGO Pick-a-Brick table in the database before processing the XML.
-
-### Example Usage
-
-```sh
-python convert.py input.xml output.csv -l my_log.txt -db my_database.db
 ```
+requests (web requests library)
+bs4 (BeautifulSoup4 web scraping library)
+lxml (XML parsing library)
+```
+
+I recommend you install via `python3 -m pip install -r requirements.txt`
+
+### Command-line arguments
+
+| argument name | required | description | default |
+| ------------- | -------- | ----------- | ------- |
+| `input_xml_file` | Yes | Path to the input XML file | N/A |
+| `-ld` or `--log_dir` | No | Path to the folder where log files will be created | `logs` |
+| `-db` or `--database_file` | No | Path to the SQLite database file | `part_info.db` |
+| `-new` or `--bricklink_new` | No | If this flag is in the command, unavailable parts exported back to a separate BrickLink XML file will have their part condition set to "New", regardless of what they were set to in the input XML | N/A |
+| `-used` or `--bricklink_used` | No | If this flag is in the command, unavailable parts exported back to a separate BrickLink XML file will have their part condition set to "Used", regardless of what they were set to in the input XML | N/A |
+| `-pb` or `--purge_bricklink` | No | If this flag is in the command, the BrickLink cache table in the SQLite database will be removed, and the script will then exit. (You should not need this unless the format of the table changes in an update) | N/A |
+| `-pl` or `--purge_lego_store` | No | If this flag is in the command, the LEGO Pick-A-Brick store cache table in the SQLite database will be removed, and the script will then exit. (You should not need this unless the format of the table changes in an update) | N/A |
+
+## Tool 2: `merge.py`
+
+### Abstract
+
+This python script is for those situations where you want to combine smaller lists into a larger one to take advantage of the 400-element limit of the LEGO Pick-A-Brick store, and get better value for your money. It can take any number of input BrickLink XML files and combine all the data into a single output BrickLink XML files, including merging two separate quantities of the same part into a single entry. Ideally, you would run this before `convert.py`.
+
+### Command-line arguments
+
+| argument name | required | description | default |
+| ------------- | -------- | ----------- | ------- |
+| `output_xml_file` | Yes | The filename of the output BrickLink XML file | N/A |
+| `input_xml_files` | At least one | Any number of filenames that are the input BrickLink XML files | N/A |
+| `-l` or `--log_file` | No | Path to the log file | `log.txt` |
+| `-new` or `--bricklink_new` | No | If this flag is in the command, all parts in the output BrickLink XML file will have their part condition set to "New", regardless of what they were set to in the input XML | N/A |
+| `-used` or `--bricklink_used` | No | If this flag is in the command, all parts in the output BrickLink XML file will have their part condition set to "Used", regardless of what they were set to in the input XML | N/A |
