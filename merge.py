@@ -30,7 +30,7 @@ def setup_logger(log_file):
     logger.addHandler(stream_handler)
     return logger
 
-def merge_parts(parts_list):
+def merge_parts(partslist_2d):
     """
     Merge parts by summing quantities for duplicate design_id and color_id combinations.
 
@@ -41,17 +41,14 @@ def merge_parts(parts_list):
         list of dict: Merged parts list.
     """
     merged_parts = {}
-    for parts in parts_list:
-        for part in parts:
+    for partslist_1d in partslist_2d:
+        for part in partslist_1d:
             key = (part['design_id'], part['color_id'])
             if key in merged_parts:
-                merged_parts[key]['quantity'] += int(part['quantity'])
+                print(f"Combining {part['quantity']:3} with {merged_parts[key]['quantity']:3} for {key}")
+                merged_parts[key]['quantity'] = str(int(merged_parts[key]['quantity']) + int(part['quantity']))
             else:
-                merged_parts[key] = {
-                    'design_id': part['design_id'],
-                    'color_id': part['color_id'],
-                    'quantity': int(part['quantity'])
-                }
+                merged_parts[key] = part.copy()
     return list(merged_parts.values())
 
 def main():
