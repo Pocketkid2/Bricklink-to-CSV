@@ -59,6 +59,8 @@ def main():
     parser.add_argument('output_file', help='Path to the output XML file')
     parser.add_argument('input_files', nargs='+', help='Paths to the input XML files')
     parser.add_argument('-l', '--log_file', default='log.txt', help='Path to the log file')
+    parser.add_argument('-new', '--bricklink_new', action='store_true', help='Set part condition to NEW for items exported back to BrickLink XML')
+    parser.add_argument('-used', '--bricklink_used', action='store_true', help='Set part condition to USED for items exported back to BrickLink XML')
     args = parser.parse_args()
 
     if not args.output_file.endswith('.xml'):
@@ -81,7 +83,15 @@ def main():
     merged_parts = merge_parts(all_parts)
     logger.info(f"Merged parts list contains {len(merged_parts)} unique entries")
 
-    export_xml(merged_parts, args.output_file)
+    condition = None
+    if args.bricklink_new:
+        condition = 'N'
+    elif args.bricklink_used:
+        condition = 'U'
+    else:
+        condition = 'X'
+
+    export_xml(merged_parts, args.output_file, condition)
     logger.info(f"Exported merged parts list to {args.output_file}")
 
 if __name__ == '__main__':
