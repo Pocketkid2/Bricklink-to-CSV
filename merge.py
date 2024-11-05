@@ -56,18 +56,18 @@ def main():
     Parse command-line arguments, set up logging, and merge XML files.
     """
     parser = argparse.ArgumentParser(description='Merge XML files and export to a single XML file.')
-    parser.add_argument('output_file', help='Path to the output XML file')
-    parser.add_argument('input_files', nargs='+', help='Paths to the input XML files')
+    parser.add_argument('output_xml_file', help='Path to the output XML file')
+    parser.add_argument('input_xml_files', nargs='+', help='Paths to the input XML files')
     parser.add_argument('-l', '--log_file', default='log.txt', help='Path to the log file')
     parser.add_argument('-new', '--bricklink_new', action='store_true', help='Set part condition to NEW for items exported back to BrickLink XML')
     parser.add_argument('-used', '--bricklink_used', action='store_true', help='Set part condition to USED for items exported back to BrickLink XML')
     args = parser.parse_args()
 
-    if not args.output_file.endswith('.xml'):
-        logging.error(f"Invalid output file type: {args.output_file}")
+    if not args.output_xml_file.endswith('.xml'):
+        logging.error(f"Invalid output file type: {args.output_xml_file}")
         return
 
-    for input_file in args.input_files:
+    for input_file in args.input_xml_files:
         if not input_file.endswith('.xml'):
             logging.error(f"Invalid input file type: {input_file}")
             return
@@ -75,7 +75,7 @@ def main():
     logger = setup_logger(args.log_file)
 
     all_parts = []
-    for input_file in args.input_files:
+    for input_file in args.input_xml_files:
         parts = parse_xml(input_file)
         all_parts.append(parts)
         logger.info(f"Parsed {len(parts)} entries from {input_file}")
@@ -91,8 +91,8 @@ def main():
     else:
         condition = 'X'
 
-    export_xml(merged_parts, args.output_file, condition)
-    logger.info(f"Exported merged parts list to {args.output_file}")
+    export_xml(merged_parts, args.output_xml_file, condition)
+    logger.info(f"Exported merged parts list to {args.output_xml_file}")
 
 if __name__ == '__main__':
     main()
