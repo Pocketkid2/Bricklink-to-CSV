@@ -57,3 +57,23 @@ def parse_xml(path):
                  f"with {total_quantity} total quantity in {path}")
     logging.info(f"Found {len(non_parts)} non-part design IDs in {path}")
     return parts
+
+
+def parse_cart(path):
+    with open(path, 'r') as file:
+        cart_string = file.read().strip()
+        bytes_data = bytes.fromhex(cart_string)
+        ascii_data = bytes_data.decode('ascii')
+        records = ascii_data.strip().split('\n')
+        cart_items = []
+        for record in records:
+            parts = record.split(':')
+            if len(parts) >= 4:
+                item = {
+                    # 'prefix': parts[0],
+                    'store_id': parts[1],
+                    'lot_id': parts[2],
+                    'quantity': int(parts[3])
+                }
+                cart_items.append(item)
+        return cart_items
