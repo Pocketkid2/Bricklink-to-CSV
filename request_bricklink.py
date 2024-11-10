@@ -51,12 +51,12 @@ def get_webpage_for_part(design_id):
         response.raise_for_status()  # Raise an HTTPError for bad responses (4xx and 5xx)
         return response.content
     except requests.exceptions.HTTPError as http_err:
-        print(f"HTTP error occurred: {http_err}")
-        print(f"Error code: {response.status_code}")
-        print(f"Error data: {response.text}")
+        logging.error(f"HTTP error occurred: {http_err}")
+        logging.error(f"Error code: {response.status_code}")
+        logging.error(f"Error data: {response.text}")
         raise http_err
     except Exception as err:
-        print(f"Other error occurred: {err}")
+        logging.error(f"Other error occurred: {err}")
         raise err
 
 
