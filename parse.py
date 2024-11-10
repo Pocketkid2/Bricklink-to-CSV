@@ -60,6 +60,15 @@ def parse_xml(path):
 
 
 def parse_cart(path):
+    """
+    Create cart lot data from a BrickLink .cart file.
+
+    Args:
+        path (str): The file path to the BrickLink .cart file
+
+    Returns:
+        list of dict: The cart lot data extracted from the .cart file
+    """
     with open(path, 'r') as file:
         cart_string = file.read().strip()
         bytes_data = bytes.fromhex(cart_string)
