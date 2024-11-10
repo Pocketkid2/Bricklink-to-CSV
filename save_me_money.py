@@ -72,7 +72,16 @@ def main():
     carts = parse_cart(args.input_cart_file)
     logging.info(f"Step 0 complete - Parsed {len(carts)} lots from {args.input_cart_file}")
 
-    # Step 1 - Find out which store and lot IDs need to be requested from the database
+    # Step 1 - Find out which store and lot IDs need to be requested from BrickLink
+    # Step 2 - Make all the requests in parallel and insert the entries into the database
+    # Step 3 - Find out which design and color IDs need to be requested from BrickLink (API exists)
+    # Step 4 - Make all the requests in parallel and insert the entries into the databse
+    # Step 5 - Find out which element IDs need to be requested from LEGO (API exists)
+    # Step 6 - Make all the requests in parallel and insert the entries into the database
+    # Step 7 - Do the triple join, and find all rows that have a bricklink store entry and at least one lego store entry
+    # Step 8 - Look through those rows and find the lowest price - sometimes LEGO will have two options of same price, handle that
+    # Step 9 - Export LEGO Pick-A-Brick CSV and JSON for those extracted cheaper parts
+    # Step 10 - Export BrickLink cart with Pick-A-Brick parts removed
     print(carts)
 
 
