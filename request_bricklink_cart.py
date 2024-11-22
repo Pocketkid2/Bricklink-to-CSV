@@ -49,8 +49,14 @@ def get_json_for_store_and_lot_id(store_id, lot_id):
     """
     try:
         url = f"https://store.bricklink.com/ajax/clone/store/searchitems.ajax?q={lot_id}&sid={store_id}"
-        logging.info(f"Fetching {url}...")
-        response = requests.get(url, headers={"User-Agent": "Mozilla/5.0", "accept-language": "en-US,en"})
+        logging.info(f"Fetching {url}")
+        headers = {
+            'Accept': 'application/json, text/javascript, */*; q=0.01',
+            'Host': 'store.bricklink.com',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3',
+            'Referer': 'https://store.bricklink.com/GratefulKel'
+        }
+        response = requests.get(url, headers=headers)
         response.raise_for_status()  # Raise an HTTPError for bad responses (4xx and 5xx)
         return response.json()
     except requests.exceptions.HTTPError as http_err:
