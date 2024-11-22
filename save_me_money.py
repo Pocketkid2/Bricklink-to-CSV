@@ -61,7 +61,7 @@ def main():
 
     input_basename = os.path.splitext(os.path.basename(args.input_cart_file))[0]
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    logfile_name = os.path.join(args.log_dir, f'save_me_money_{input_basename}_{timestamp}.log')
+    logfile_name = os.path.join(args.log_dir, f'save_me_money_{input_basename}_{timestamp}.txt')
 
     logger = setup_logger(logfile_name)
 
