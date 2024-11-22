@@ -5,11 +5,15 @@ Reduce the cost of a BrickLink cart set by checking parts against LEGO Pick-a-Br
 """
 
 import os
+import sys
+import time
 import logging
-import datetime
+from datetime import datetime
 import argparse
+import concurrent.futures
 from database import *
 from parse import parse_cart
+from request_bricklink_cart import get_part_and_price_for_lot
 
 
 def setup_logger(log_file):
@@ -69,20 +73,40 @@ def main():
         return
 
     # Step 0 - Parse input BrickLink cart file
-    carts = parse_cart(args.input_cart_file)
-    logging.info(f"Step 0 complete - Parsed {len(carts)} lots from {args.input_cart_file}")
+    cart_lots = parse_cart(args.input_cart_file)
+    logging.info(f"Step 0 complete - Parsed {len(cart_lots)} lots from {args.input_cart_file}")
 
     # Step 1 - Find out which store and lot IDs need to be requested from BrickLink
+    request_cart_lots = {(cart['store_id'], cart['lot_id']) for cart in cart_lots if not database.get_bricklink_cart_entry_by_store_and_lot_id(cart['store_id'], cart['lot_id'])}
+    logging.info(f"Step 1 complete - Found {len(request_cart_lots)} new lots to request from BrickLink")
+    
     # Step 2 - Make all the requests in parallel and insert the entries into the database
+    start_time = time.time()
+    database_insertions = 0
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future_to_design_id = {executor.submit(get_part_and_price_for_lot, store_id, lot_id): (store_id, lot_id) for store_id, lot_id in request_cart_lots}
+        for future in concurrent.futures.as_completed(future_to_design_id):
+            store_id, lot_id = future_to_design_id[future]
+            try:
+                design_id, color_code, price = future.result()
+                database.insert_bricklink_cart_entry(store_id, lot_id, price, design_id, color_code)
+                database_insertions += 1
+            except Exception as e:
+                logging.error(f"Exception raised for {store_id}, {lot_id}: {e}")
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    minutes, seconds = divmod(int(elapsed_time), 60)
+    logging.info(f"Step 2 complete - Inserted {database_insertions} new lots in {minutes} minutes and {seconds} seconds")
+
+    
     # Step 3 - Find out which design and color IDs need to be requested from BrickLink (API exists)
-    # Step 4 - Make all the requests in parallel and insert the entries into the databse
+    # Step 4 - Make all the requests in parallel and insert the entries into the database
     # Step 5 - Find out which element IDs need to be requested from LEGO (API exists)
     # Step 6 - Make all the requests in parallel and insert the entries into the database
     # Step 7 - Do the triple join, and find all rows that have a bricklink store entry and at least one lego store entry
     # Step 8 - Look through those rows and find the lowest price - sometimes LEGO will have two options of same price, handle that
     # Step 9 - Export LEGO Pick-A-Brick CSV and JSON for those extracted cheaper parts
     # Step 10 - Export BrickLink cart with Pick-A-Brick parts removed
-    print(carts)
 
 
 if __name__ == '__main__':
