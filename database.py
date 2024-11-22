@@ -53,7 +53,7 @@ class DatabaseManager:
             lot_id INTEGER NOT NULL,
             price INTEGER NOT NULL,
             design_id INTEGER NOT NULL,
-            color_code INTEGER NOT NULL,
+            color_code INTEGER NOT NULL
         )''')
 
     def close(self):
