@@ -35,13 +35,13 @@ class DatabaseManager:
     def _create_tables(self):
         """Create the necessary tables if they do not exist."""
         self.cursor.execute('''CREATE TABLE IF NOT EXISTS bricklink_entries (
-            element_id INTEGER NOT NULL PRIMARY KEY,
-            design_id INTEGER NOT NULL,
-            color_code INTEGER NOT NULL
+            element_id TEXT NOT NULL PRIMARY KEY,
+            design_id TEXT NOT NULL,
+            color_code TEXT NOT NULL
         )''')
 
         self.cursor.execute('''CREATE TABLE IF NOT EXISTS lego_store_entries (
-            element_id INTEGER NOT NULL PRIMARY KEY,
+            element_id TEXT NOT NULL PRIMARY KEY,
             lego_sells BOOLEAN NOT NULL,
             bestseller BOOLEAN,
             price REAL,
@@ -49,11 +49,11 @@ class DatabaseManager:
         )''')
 
         self.cursor.execute('''CREATE TABLE IF NOT EXISTS bricklink_store_lots (
-            store_id INTEGER NOT NULL,
-            lot_id INTEGER NOT NULL,
+            store_id TEXT NOT NULL,
+            lot_id TEXT NOT NULL,
             price REAL NOT NULL,
-            design_id INTEGER NOT NULL,
-            color_code INTEGER NOT NULL
+            design_id TEXT NOT NULL,
+            color_code TEXT NOT NULL
         )''')
 
     def close(self):
@@ -67,9 +67,9 @@ class DatabaseManager:
         Insert a new entry into the BrickLink table.
 
         Args:
-            element_id (int): The element ID.
-            design_id (int): The design ID.
-            color_code (int): The color code.
+            element_id (str): The element ID.
+            design_id (str): The design ID.
+            color_code (str): The color code.
         """
         self.cursor.execute('INSERT OR IGNORE INTO bricklink_entries VALUES (?, ?, ?)', (element_id, design_id, color_code))
         if self.cursor.rowcount == 0:
@@ -82,10 +82,10 @@ class DatabaseManager:
         Insert a new entry into the LEGO Pick-a-Brick table.
 
         Args:
-            element_id (int): The element ID.
+            element_id (str): The element ID.
             lego_sells (bool): Whether LEGO sells this item.
             bestseller (bool): Whether this item is a bestseller.
-            price (int): The price of the item, in cents.
+            price (str): The price of the item, in cents.
             max_order_quantity (int): The maximum order quantity.
         """
         self.cursor.execute('INSERT OR IGNORE INTO lego_store_entries VALUES (?, ?, ?, ?, ?)', (element_id, lego_sells, bestseller, price[1:], max_order_quantity))
@@ -99,11 +99,11 @@ class DatabaseManager:
         Insert a new entry into the BrickLink cart table.
 
         Args:
-            store_id (int): The store ID.
-            lot_id (int): The lot ID.
-            price (int): The price of the item, in cents.
-            design_id (int): The design ID.
-            color_code (int): The color code.
+            store_id (str): The store ID.
+            lot_id (str): The lot ID.
+            price (float): The price of the item, in cents.
+            design_id (str): The design ID.
+            color_code (str): The color code.
         """
         self.cursor.execute('INSERT OR IGNORE INTO bricklink_store_lots VALUES (?, ?, ?, ?, ?)', (store_id, lot_id, price, design_id, color_code))
         if self.cursor.rowcount == 0:
@@ -123,6 +123,21 @@ class DatabaseManager:
         """
         self.cursor.execute('SELECT * FROM bricklink_entries WHERE design_id = ?', (design_id,))
         self.logger.info(f"[DB] Queried BrickLink entry by design ID: {design_id}")
+        return self.cursor.fetchone()
+    
+    def get_bricklink_cart_entry_by_store_and_lot_id(self, store_id, lot_id):
+        """
+        Retrieve a BrickLink cart entry by store and lot ID.
+
+        Args:
+            store_id (int): The store ID.
+            lot_id (int): The lot ID.
+
+        Returns:
+            tuple: The row corresponding to the store and lot ID, or None if not found.
+        """
+        self.cursor.execute('SELECT * FROM bricklink_store_lots WHERE store_id = ? AND lot_id = ?', (store_id, lot_id))
+        self.logger.info(f"[DB] Queried BrickLink cart entry by store and lot ID: {store_id}, {lot_id}")
         return self.cursor.fetchone()
 
     def get_bricklink_entries_by_design_id_and_color_code(self, design_id, color_code):
