@@ -23,7 +23,7 @@ fragment ElementLeaf on SearchResultElement {
   maxOrderQuantity
   deliveryChannel
   price {
-    centAmount
+    formattedAmount
     currencyCode
   }
 }

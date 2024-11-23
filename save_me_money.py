@@ -93,6 +93,7 @@ def main():
                 database_insertions += 1
             except Exception as e:
                 logging.error(f"Exception raised for {store_id}, {lot_id}: {e}")
+    database.commit_changes()
     end_time = time.time()
     elapsed_time = end_time - start_time
     minutes, seconds = divmod(int(elapsed_time), 60)
