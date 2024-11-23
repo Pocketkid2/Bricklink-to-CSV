@@ -79,10 +79,10 @@ def parse_cart(path):
             parts = record.split(':')
             if len(parts) >= 4:
                 item = {
-                    # 'prefix': parts[0],
+                    'prefix': parts[0],
                     'store_id': parts[1],
                     'lot_id': parts[2],
-                    'quantity': int(parts[3])
+                    'quantity': parts[3]
                 }
                 cart_items.append(item)
         return cart_items
