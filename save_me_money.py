@@ -76,7 +76,7 @@ def main():
 
     # Step 0 - Parse input BrickLink cart file
     cart_lots = parse_cart(args.input_cart_file)
-    logging.info(f"Step 0 complete - Parsed {len(cart_lots)} lots from {args.input_cart_file}")
+    logging.info(f"Step 0 complete - Parsed {len(cart_lots)} lots from {args.input_cart_file}: {cart_lots}")
 
     # Step 1 - Find out which store and lot IDs need to be requested from BrickLink
     request_cart_lots = {(cart['store_id'], cart['lot_id']) for cart in cart_lots if not database.get_bricklink_cart_entry_by_store_and_lot_id(cart['store_id'], cart['lot_id'])}
@@ -172,9 +172,43 @@ def main():
     logging.info(f"Step 6 complete - database insertions: {database_insertions}, time taken: {minutes} minutes and {seconds} seconds")
     
     # Step 7 - Do the triple join, and find all rows that have a bricklink store entry and at least one lego store entry
-    # Step 8 - Look through those rows and find the lowest price - sometimes LEGO will have two options of same price, handle that
-    # Step 9 - Export LEGO Pick-A-Brick CSV and JSON for those extracted cheaper parts
-    # Step 10 - Export BrickLink cart with Pick-A-Brick parts removed
+    final_bricklink_lots = []
+    final_lego_lots = []
+    for cart_lot in cart_lots:
+        price_compare = [row for row in database.compare_prices_for_lot(cart_lot['store_id'], cart_lot['lot_id']) if row[1] is not None]
+        # print(f"Cart lot with store id {cart_lot['store_id']} and lot id {cart_lot['lot_id']} has price compare of size {len(price_compare)}: {price_compare}")
+        price_compare_value = None
+        if len(price_compare) == 1:
+            price_compare_value = price_compare[0]
+            logger.info(f"Price compare value: {price_compare_value}")
+        elif len(price_compare) == 2:
+            print(f"Cart lot with store id {cart_lot['store_id']} and lot id {cart_lot['lot_id']} has two price compare values:")
+            for index, row in enumerate(price_compare):
+                print(index, row)
+            while True:
+                try:
+                    choice = int(input("Choose one (0 or 1): "))
+                    if choice in [0, 1]:
+                        break
+                except ValueError:
+                    pass
+            price_compare_value = price_compare[choice]
+        else:
+            continue
+        if price_compare_value[1] > price_compare_value[2]:
+            final_bricklink_lots.append(cart_lot)
+            logger.info(f"Choosing BrickLink price, adding to BrickLink cart: {cart_lot}")
+        else:
+            lego_lot = {
+                'elementId': price_compare_value[0],
+                'quantity': cart_lot['quantity'],
+            }
+            final_lego_lots.append(lego_lot)
+            logger.info(f"Choosing LEGO price, adding to LEGO cart: {lego_lot}")
+    logger.info(f"Step 7 complete - Final BrickLink lots (size {len(final_bricklink_lots)}): {final_bricklink_lots}")
+    logger.info(f"Step 7 complete - Final LEGO lots (size {len(final_lego_lots)}): {final_lego_lots}")
+    
+    # Step 8 - Export final BrickLink cart file and LEGO Pick-A-Brick CSV file
 
 
 if __name__ == '__main__':
