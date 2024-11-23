@@ -12,7 +12,9 @@ import argparse
 from database import *
 import concurrent.futures
 from parse import parse_cart
+from export import export_csv
 from datetime import datetime
+from export import export_cart
 from request_bricklink import get_color_dict_for_part
 from request_bricklink_cart import get_part_and_price_for_lot
 from request_lego_store import get_lego_store_result_for_element_id
@@ -205,10 +207,18 @@ def main():
             }
             final_lego_lots.append(lego_lot)
             logger.info(f"Choosing LEGO price, adding to LEGO cart: {lego_lot}")
+    final_bricklink_lots = sorted(final_bricklink_lots, key=lambda x: (x['store_id'], x['lot_id']))
     logger.info(f"Step 7 complete - Final BrickLink lots (size {len(final_bricklink_lots)}): {final_bricklink_lots}")
     logger.info(f"Step 7 complete - Final LEGO lots (size {len(final_lego_lots)}): {final_lego_lots}")
     
     # Step 8 - Export final BrickLink cart file and LEGO Pick-A-Brick CSV file
+    basename = os.path.splitext(args.input_cart_file)[0]
+    bricklink_output_file = f"{basename}_updated_bricklink_cart.cart"
+    lego_output_file = f"{basename}_lego_cart.csv"
+    export_cart(final_bricklink_lots, bricklink_output_file)
+    export_csv(final_lego_lots, lego_output_file)
+    logger.info(f"Step 8 complete - Exported {len(final_bricklink_lots)} entries to {bricklink_output_file}")
+    logger.info(f"Step 8 complete - Exported {len(final_lego_lots)} entries to {lego_output_file}")
 
 
 if __name__ == '__main__':
