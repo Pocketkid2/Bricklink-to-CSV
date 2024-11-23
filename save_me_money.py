@@ -13,6 +13,7 @@ import argparse
 import concurrent.futures
 from database import *
 from parse import parse_cart
+from request_bricklink import get_color_dict_for_part
 from request_bricklink_cart import get_part_and_price_for_lot
 
 
@@ -99,9 +100,38 @@ def main():
     minutes, seconds = divmod(int(elapsed_time), 60)
     logging.info(f"Step 2 complete - Inserted {database_insertions} new lots in {minutes} minutes and {seconds} seconds")
 
-    
     # Step 3 - Find out which design and color IDs need to be requested from BrickLink (API exists)
+    request_design_ids = set()
+    for cart_lot in cart_lots:
+        bricklink_data = database.get_bricklink_cart_entry_by_store_and_lot_id(cart_lot['store_id'], cart_lot['lot_id'])
+        if bricklink_data:
+            design_id = bricklink_data[3]
+            color_code = bricklink_data[4]
+            if not database.get_bricklink_entry_by_design_id(design_id):
+                request_design_ids.add(design_id)
+    logging.info(f"Step 3 complete - request design IDs (length {len(request_design_ids)}): {request_design_ids}")
+    
     # Step 4 - Make all the requests in parallel and insert the entries into the database
+    start_time = time.time()
+    database_insertions = 0
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future_to_design_id = {executor.submit(get_color_dict_for_part, design_id): design_id for design_id in request_design_ids}
+        for future in concurrent.futures.as_completed(future_to_design_id):
+            design_id = future_to_design_id[future]
+            try:
+                data = future.result()
+                for color_code, element_id_list in data.items():
+                    for element_id in element_id_list:
+                        database.insert_bricklink_entry(element_id, design_id, color_code)
+                        database_insertions += 1
+            except Exception as exc:
+                logging.error(f"Step 3 - Design ID {design_id} generated an exception: {exc}")
+    database.commit_changes()
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    minutes, seconds = divmod(int(elapsed_time), 60)
+    logging.info(f"Step 4 complete - Inserted {database_insertions} new design IDs in {minutes} minutes and {seconds} seconds")
+    
     # Step 5 - Find out which element IDs need to be requested from LEGO (API exists)
     # Step 6 - Make all the requests in parallel and insert the entries into the database
     # Step 7 - Do the triple join, and find all rows that have a bricklink store entry and at least one lego store entry
