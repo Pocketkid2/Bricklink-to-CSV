@@ -8,13 +8,14 @@ import os
 import sys
 import time
 import logging
-from datetime import datetime
 import argparse
-import concurrent.futures
 from database import *
+import concurrent.futures
 from parse import parse_cart
+from datetime import datetime
 from request_bricklink import get_color_dict_for_part
 from request_bricklink_cart import get_part_and_price_for_lot
+from request_lego_store import get_lego_store_result_for_element_id
 
 
 def setup_logger(log_file):
@@ -133,7 +134,43 @@ def main():
     logging.info(f"Step 4 complete - Inserted {database_insertions} new design IDs in {minutes} minutes and {seconds} seconds")
     
     # Step 5 - Find out which element IDs need to be requested from LEGO (API exists)
+    master_element_ids = set()
+    for cart_lot in cart_lots:
+        element_ids = [element_id for element_id in database.match_bricklink_entries_to_bricklink_cart_entries(cart_lot['store_id'], cart_lot['lot_id'])]
+        master_element_ids.update(element_ids)
+    request_element_ids = {element_id[0] for element_id in master_element_ids if not database.get_lego_store_entry_by_element_id(element_id[0])}
+    logging.info(f"Step 5 complete - Master element IDs (length {len(master_element_ids)}): {master_element_ids}")
+    logging.info(f"Step 5 complete - Request element IDs (length {len(request_element_ids)}): {request_element_ids}")
+    
     # Step 6 - Make all the requests in parallel and insert the entries into the database
+    start_time = time.time()
+    database_insertions = 0
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future_to_element_id = {executor.submit(get_lego_store_result_for_element_id, element_id): element_id for element_id in request_element_ids}
+        for future in concurrent.futures.as_completed(future_to_element_id):
+            element_id = future_to_element_id[future]
+            try:
+                data = future.result()
+                if data is None:
+                    database.insert_lego_store_entry(element_id, lego_sells=False, bestseller=None, price=None, max_order_quantity=None)
+                    database_insertions += 1
+                else:
+                    if data['deliveryChannel'] not in ['pab', 'bap']:
+                        raise ValueError(f"Invalid delivery channel: {data['deliveryChannel']}")
+                    database.insert_lego_store_entry(element_id,
+                                                     lego_sells=True,
+                                                     bestseller=(data['deliveryChannel'] == 'pab'),
+                                                     price=data['price']['formattedAmount'],
+                                                     max_order_quantity=data['maxOrderQuantity'])
+                    database_insertions += 1
+            except Exception as exc:
+                logging.error(f"Step 6 - Element ID {element_id} generated an exception: {exc}")
+    database.commit_changes()
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    minutes, seconds = divmod(int(elapsed_time), 60)
+    logging.info(f"Step 6 complete - database insertions: {database_insertions}, time taken: {minutes} minutes and {seconds} seconds")
+    
     # Step 7 - Do the triple join, and find all rows that have a bricklink store entry and at least one lego store entry
     # Step 8 - Look through those rows and find the lowest price - sometimes LEGO will have two options of same price, handle that
     # Step 9 - Export LEGO Pick-A-Brick CSV and JSON for those extracted cheaper parts
