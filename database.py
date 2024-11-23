@@ -229,6 +229,24 @@ class DatabaseManager:
         self.logger.info(f"[DB] Matched BrickLink entries to LEGO Pick-a-Brick entries by design ID and color code: {design_id}, {color_code}")
         return self.cursor.fetchall()
     
+    def compare_prices_for_lot(self, store_id, lot_id):
+        """
+        Compare prices between LEGO Pick-a-Brick and BrickLink.
+
+        Returns:
+            tuple array: The matched rows, or an empty array if no matches are found.
+        """
+        self.cursor.execute('''
+                            select lse.element_id, lse.price as lego_price, bsl.price as bricklink_price
+                            from lego_store_entries lse
+                            join bricklink_entries be on lse.element_id == be.element_id
+                            join bricklink_store_lots bsl on be.design_id == bsl.design_id and be.color_code == bsl.color_code
+                            where bsl.store_id = ? and bsl.lot_id = ?
+                            order by lse.element_id
+                            ''', (store_id, lot_id))
+        self.logger.info(f"[DB] Generated list to compare prices between LEGO Pick-a-Brick and BrickLink for store ID and lot ID: {store_id}, {lot_id}")
+        return self.cursor.fetchall()
+    
     def commit_changes(self):
         """Commit changes to the database."""
         self.connection.commit()
