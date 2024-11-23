@@ -88,11 +88,13 @@ class DatabaseManager:
             price (str): The price of the item, in cents.
             max_order_quantity (int): The maximum order quantity.
         """
-        self.cursor.execute('INSERT OR IGNORE INTO lego_store_entries VALUES (?, ?, ?, ?, ?)', (element_id, lego_sells, bestseller, price[1:], max_order_quantity))
+        if price is not None:
+            price = float(price[1:])
+        self.cursor.execute('INSERT OR IGNORE INTO lego_store_entries VALUES (?, ?, ?, ?, ?)', (element_id, lego_sells, bestseller, price, max_order_quantity))
         if self.cursor.rowcount == 0:
-            self.logger.info(f"[DB] Skipped existing LEGO Pick-a-Brick entry: {element_id}, {lego_sells}, {bestseller}, {price[1:]}, {max_order_quantity}")
+            self.logger.info(f"[DB] Skipped existing LEGO Pick-a-Brick entry: {element_id}, {lego_sells}, {bestseller}, {price}, {max_order_quantity}")
         else:
-            self.logger.info(f"[DB] Inserted LEGO Pick-a-Brick entry: {element_id}, {lego_sells}, {bestseller}, {price[1:]}, {max_order_quantity}")
+            self.logger.info(f"[DB] Inserted LEGO Pick-a-Brick entry: {element_id}, {lego_sells}, {bestseller}, {price}, {max_order_quantity}")
 
     def insert_bricklink_cart_entry(self, store_id, lot_id, price, design_id, color_code):
         """
@@ -183,6 +185,28 @@ class DatabaseManager:
         self.cursor.execute('SELECT * FROM bricklink_store_lots WHERE store_id = ? AND lot_id = ?', (store_id, lot_id))
         self.logger.info(f"[DB] Queried BrickLink cart entry by store and lot ID: {store_id}, {lot_id}")
         return self.cursor.fetchone()
+    
+    def match_bricklink_entries_to_bricklink_cart_entries(self, store_id, lot_id):
+        """
+        Match BrickLink entries to BrickLink cart entries by store and lot ID.
+
+        Args:
+            store_id (str): The store ID.
+            lot_id (str): The lot ID.
+
+        Returns:
+            tuple array: The matched rows, or an empty array if no matches are found.
+        """
+        self.cursor.execute('''
+                            select element_id from bricklink_entries
+                            join bricklink_store_lots
+                            where bricklink_entries.design_id == bricklink_store_lots.design_id
+                            and bricklink_entries.color_code == bricklink_store_lots.color_code
+                            and bricklink_store_lots.store_id = ?
+                            and bricklink_store_lots.lot_id = ?
+                            ''', (store_id, lot_id))
+        self.logger.info(f"[DB] Matched BrickLink entries to BrickLink cart entries by store and lot ID: {store_id}, {lot_id}")
+        return self.cursor.fetchall()
 
     def match_bricklink_entries_to_lego_store_entries(self, design_id, color_code):
         """
