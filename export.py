@@ -67,3 +67,24 @@ def export_xml(parts, path, condition='X'):
             xml_file.write('</ITEM>\n')
         xml_file.write('</INVENTORY>\n')
     logging.info(f"Exported {len(parts)} entries to {path}")
+
+
+def export_cart(cart_items, path):
+    """
+    Export cart lot data to a BrickLink .cart file.
+
+    Args:
+        cart_items (list of dict): The cart lot data to be exported
+        path (str): The file path to save the BrickLink .cart file
+    """
+    records = []
+    for item in cart_items:
+        record = f"{item.get('prefix', '')}:{item['store_id']}:{item['lot_id']}:{item['quantity']}"
+        records.append(record)
+    
+    ascii_data = '\n'.join(records)
+    bytes_data = ascii_data.encode('ascii')
+    cart_string = bytes_data.hex().upper()
+    
+    with open(path, 'w') as file:
+        file.write(cart_string)
