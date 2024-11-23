@@ -1,6 +1,6 @@
 # BrickLink XML partslist to LEGO Pick-a-Brick CSV/JSON partslist converter
 
-This project contains the following Python 3 scripts:
+This project contains the following Python scripts:
 
 1. `save_me_money.py` - Take a BrickLink exported cart file, and pull out a LEGO Pick-A-Brick order for any lot where the parts can be found cheaper on LEGO's site! It will spit out a .cart file that can be imported back into BrickLink, and a CSV file that can be used to create a Pick-A-Brick order on the official LEGO Pick-A-Brick site (look for the "Upload List" button)
 2. `convert.py` - Simpler script, converts all items in a BrickLink XML wishlist/partslist, and converts to LEGO Pick-A-Brick order set (only for parts that are available there, the rest will be exported back to a BrickLink XML)
