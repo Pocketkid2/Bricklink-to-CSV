@@ -264,5 +264,5 @@ class DatabaseManager:
 
     def purge_bricklink_store_lots(self):
         """Purge the BrickLink store lots table."""
-        self.cursor.execute('DROP TABLE bricklink_store_lots')
+        self.cursor.execute('DELETE * FROM bricklink_store_lots')
         self.logger.warning("[DB] Purged BrickLink store lots table.")

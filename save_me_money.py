@@ -60,7 +60,6 @@ def main():
     parser.add_argument('input_cart_file', type=str, help='Path to the BrickLink cart file.')
     parser.add_argument('-ld', '--log_dir', type=str, default='logs', help='Path to the directory to save logs.')
     parser.add_argument('-db', '--database_file', type=str, default='part_info.db', help='Path to the SQLite database file.')
-    parser.add_argument('-pc', '--purge_cart_table', action='store_true', help='Purge the table of BrickLink lots (from cart) in the database.')
     args = parser.parse_args()
 
     input_basename = os.path.splitext(os.path.basename(args.input_cart_file))[0]
@@ -72,9 +71,8 @@ def main():
     database = DatabaseManager(args.database_file, logger)
 
     # Don't actually process files if purge is requested
-    if args.purge_cart_table:
-        database.purge_bricklink_store_lots()
-        return
+    database.purge_bricklink_store_lots()
+    logging.info("Purged all BrickLink store lots")
 
     # Step 0 - Parse input BrickLink cart file
     cart_lots = parse_cart(args.input_cart_file)
