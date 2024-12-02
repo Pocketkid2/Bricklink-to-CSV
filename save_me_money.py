@@ -30,6 +30,10 @@ def setup_logger(log_file):
     Returns:
         logging.Logger: Configured logger instance.
     """
+    log_dir = os.path.dirname(log_file)
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
 
