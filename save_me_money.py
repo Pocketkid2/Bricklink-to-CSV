@@ -13,6 +13,7 @@ from database import *
 import concurrent.futures
 from parse import parse_cart
 from export import export_csv
+from export import export_xml
 from datetime import datetime
 from export import export_cart
 from request_bricklink import get_color_dict_for_part
@@ -64,6 +65,7 @@ def main():
     parser.add_argument('input_cart_file', type=str, help='Path to the BrickLink cart file.')
     parser.add_argument('-ld', '--log_dir', type=str, default='logs', help='Path to the directory to save logs.')
     parser.add_argument('-db', '--database_file', type=str, default='part_info.db', help='Path to the SQLite database file.')
+    parser.add_argument('--skip-purge', action='store_true', help='Skip purging the BrickLink store lots.')
     args = parser.parse_args()
 
     input_basename = os.path.splitext(os.path.basename(args.input_cart_file))[0]
@@ -75,8 +77,9 @@ def main():
     database = DatabaseManager(args.database_file, logger)
 
     # Don't actually process files if purge is requested
-    database.purge_bricklink_store_lots()
-    logging.info("Purged all BrickLink store lots")
+    if not args.skip_purge:
+        database.purge_bricklink_store_lots()
+        logging.info("Purged all BrickLink store lots")
 
     # Step 0 - Parse input BrickLink cart file
     cart_lots = parse_cart(args.input_cart_file)
@@ -94,8 +97,8 @@ def main():
         for future in concurrent.futures.as_completed(future_to_design_id):
             store_id, lot_id = future_to_design_id[future]
             try:
-                design_id, color_code, price = future.result()
-                database.insert_bricklink_cart_entry(store_id, lot_id, price, design_id, color_code)
+                design_id, color_code, price, type = future.result()
+                database.insert_bricklink_cart_entry(store_id, lot_id, price, design_id, color_code, type)
                 database_insertions += 1
             except Exception as e:
                 logging.error(f"Exception raised for {store_id}, {lot_id}: {e}")
@@ -140,7 +143,7 @@ def main():
     # Step 5 - Find out which element IDs need to be requested from LEGO (API exists)
     master_element_ids = set()
     for cart_lot in cart_lots:
-        element_ids = [element_id for element_id in database.match_bricklink_entries_to_bricklink_cart_entries(cart_lot['store_id'], cart_lot['lot_id'])]
+        element_ids = [element_id for element_id in database.match_bricklink_cart_entries_to_element_ids(cart_lot['store_id'], cart_lot['lot_id'])]
         master_element_ids.update(element_ids)
     request_element_ids = {element_id[0] for element_id in master_element_ids if not database.get_lego_store_entry_by_element_id(element_id[0])}
     logging.info(f"Step 5 complete - Master element IDs (length {len(master_element_ids)}): {master_element_ids}")
@@ -177,6 +180,7 @@ def main():
     
     # Step 7 - Do the triple join, and find all rows that have a bricklink store entry and at least one lego store entry
     final_bricklink_lots = []
+    final_bricklink_partslist = []
     final_lego_lots = []
     for cart_lot in cart_lots:
         price_compare = [row for row in database.compare_prices_for_lot(cart_lot['store_id'], cart_lot['lot_id']) if row[1] is not None]
@@ -201,6 +205,22 @@ def main():
             continue
         if price_compare_value[1] > price_compare_value[2]:
             final_bricklink_lots.append(cart_lot)
+            (_, _, _, design_id, color_code, type) = database.get_bricklink_cart_entry_by_store_and_lot_id(cart_lot['store_id'], cart_lot['lot_id'])
+            merged = False
+            for part in final_bricklink_partslist:
+                if part['design_id'] == design_id and part['color_id'] == color_code:
+                    part['quantity'] = str(int(cart_lot['quantity']) + int(part['quantity']))
+                    logger.info(f"Adding design ID {design_id} and color code {color_code} and quantity {cart_lot['quantity']} to existing part in BrickLink partslist")
+                    merged = True
+                    break
+            if not merged:
+                final_bricklink_partslist.append({
+                    'design_id': design_id,
+                    'color_id': color_code,
+                    'quantity': cart_lot['quantity'],
+                    'type': type,
+                })
+                logger.info(f"Adding design ID {design_id} and color code {color_code} and quantity {cart_lot['quantity']} to new part in BrickLink partslist")
             logger.info(f"Choosing BrickLink price, adding to BrickLink cart: {cart_lot}")
         else:
             lego_lot = {
@@ -217,10 +237,11 @@ def main():
     basename = os.path.splitext(args.input_cart_file)[0]
     bricklink_output_file = f"{basename}_updated_bricklink_cart.cart"
     lego_output_file = f"{basename}_lego_cart.csv"
+    bricklink_partslist_file = f"{basename}_bricklink_partslist.xml"
     export_cart(final_bricklink_lots, bricklink_output_file)
     export_csv(final_lego_lots, lego_output_file)
-    logger.info(f"Step 8 complete - Exported {len(final_bricklink_lots)} entries to {bricklink_output_file}")
-    logger.info(f"Step 8 complete - Exported {len(final_lego_lots)} entries to {lego_output_file}")
+    export_xml(final_bricklink_partslist, bricklink_partslist_file, condition='N')
+    logger.info(f"Step 8 complete")
 
 
 if __name__ == '__main__':

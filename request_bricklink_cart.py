@@ -33,7 +33,7 @@ def parse_json(json_data):
     Returns:
         tuple: The part and price data.
     """
-    return (json_data['itemNo'], json_data['colorID'], float(json_data['nativePrice'][4:]))
+    return (json_data['itemNo'], json_data['colorID'], float(json_data['nativePrice'][4:]), json_data['itemType'])
 
 
 def get_json_for_store_and_lot_id(store_id, lot_id):

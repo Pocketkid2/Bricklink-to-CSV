@@ -53,7 +53,8 @@ class DatabaseManager:
             lot_id TEXT NOT NULL,
             price REAL NOT NULL,
             design_id TEXT NOT NULL,
-            color_code TEXT NOT NULL
+            color_code TEXT NOT NULL,
+            type TEXT NOT NULL
         )''')
 
     def close(self):
@@ -96,7 +97,7 @@ class DatabaseManager:
         else:
             self.logger.info(f"[DB] Inserted LEGO Pick-a-Brick entry: {element_id}, {lego_sells}, {bestseller}, {price}, {max_order_quantity}")
 
-    def insert_bricklink_cart_entry(self, store_id, lot_id, price, design_id, color_code):
+    def insert_bricklink_cart_entry(self, store_id, lot_id, price, design_id, color_code, type):
         """
         Insert a new entry into the BrickLink cart table.
 
@@ -107,11 +108,11 @@ class DatabaseManager:
             design_id (str): The design ID.
             color_code (str): The color code.
         """
-        self.cursor.execute('INSERT OR IGNORE INTO bricklink_store_lots VALUES (?, ?, ?, ?, ?)', (store_id, lot_id, price, design_id, color_code))
+        self.cursor.execute('INSERT OR IGNORE INTO bricklink_store_lots VALUES (?, ?, ?, ?, ?, ?)', (store_id, lot_id, price, design_id, color_code, type))
         if self.cursor.rowcount == 0:
-            self.logger.info(f"[DB] Skipped existing BrickLink cart entry: {store_id}, {lot_id}, {price}, {design_id}, {color_code}")
+            self.logger.info(f"[DB] Skipped existing BrickLink cart entry: {store_id}, {lot_id}, {price}, {design_id}, {color_code}, {type}")
         else:
-            self.logger.info(f"[DB] Inserted BrickLink cart entry: {store_id}, {lot_id}, {price}, {design_id}, {color_code}")
+            self.logger.info(f"[DB] Inserted BrickLink cart entry: {store_id}, {lot_id}, {price}, {design_id}, {color_code}, {type}")
 
     def get_bricklink_entry_by_design_id(self, design_id):
         """
@@ -186,7 +187,7 @@ class DatabaseManager:
         self.logger.info(f"[DB] Queried BrickLink cart entry by store and lot ID: {store_id}, {lot_id}")
         return self.cursor.fetchone()
     
-    def match_bricklink_entries_to_bricklink_cart_entries(self, store_id, lot_id):
+    def match_bricklink_cart_entries_to_element_ids(self, store_id, lot_id):
         """
         Match BrickLink entries to BrickLink cart entries by store and lot ID.
 
