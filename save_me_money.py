@@ -223,12 +223,19 @@ def main():
                 logger.info(f"Adding design ID {design_id} and color code {color_code} and quantity {cart_lot['quantity']} to new part in BrickLink partslist")
             logger.info(f"Choosing BrickLink price, adding to BrickLink cart: {cart_lot}")
         else:
-            lego_lot = {
-                'elementId': price_compare_value[0],
-                'quantity': cart_lot['quantity'],
-            }
-            final_lego_lots.append(lego_lot)
-            logger.info(f"Choosing LEGO price, adding to LEGO cart: {lego_lot}")
+            merged = False
+            for lot in final_lego_lots:
+                if lot['elementId'] == price_compare_value[0]:
+                    lot['quantity'] = str(int(cart_lot['quantity']) + int(lot['quantity']))
+                    logger.info(f"Adding element ID {price_compare_value[0]} and quantity {cart_lot['quantity']} to existing part in LEGO list")
+                    merged = True
+                    break
+            if not merged:
+                final_lego_lots.append({
+                    'elementId': price_compare_value[0],
+                    'quantity': cart_lot['quantity'],
+                })
+                logger.info(f"Adding element ID {price_compare_value[0]} and quantity {cart_lot['quantity']} to new part in LEGO list")
     final_bricklink_lots = sorted(final_bricklink_lots, key=lambda x: (x['store_id'], x['lot_id']))
     logger.info(f"Step 7 complete - Final BrickLink lots (size {len(final_bricklink_lots)}): {final_bricklink_lots}")
     logger.info(f"Step 7 complete - Final LEGO lots (size {len(final_lego_lots)}): {final_lego_lots}")
