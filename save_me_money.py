@@ -21,7 +21,7 @@ from request_bricklink_cart import get_part_and_price_for_lot
 from request_lego_store import get_lego_store_result_for_element_id
 
 
-def setup_logger(log_file):
+def setup_logger(log_file, debug):
     """
     Configure and return a logger instance.
 
@@ -36,16 +36,16 @@ def setup_logger(log_file):
         os.makedirs(log_dir)
 
     logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.DEBUG if debug else logging.INFO)
 
     # File handler
     file_handler = logging.FileHandler(log_file)
-    file_handler.setLevel(logging.DEBUG)
+    file_handler.setLevel(logging.DEBUG if debug else logging.INFO)
     file_handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] %(message)s'))
 
     # Stream handler (stdout)
     stream_handler = logging.StreamHandler(sys.stdout)
-    stream_handler.setLevel(logging.DEBUG)
+    stream_handler.setLevel(logging.DEBUG if debug else logging.INFO)
     stream_handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] %(message)s'))
 
     # Add handlers to the logger
@@ -55,35 +55,23 @@ def setup_logger(log_file):
     return logger
 
 
-def main():
-    """
-    Parse command line arguments and run the main program.
-
-    Uses a new BrickLink store lot API to get the price of a lot.
-    """
-    parser = argparse.ArgumentParser(description='Reduce the cost of a BrickLink cart set by checking parts against LEGO Pick-a-Brick prices.')
-    parser.add_argument('input_cart_file', type=str, help='Path to the BrickLink cart file.')
-    parser.add_argument('-ld', '--log_dir', type=str, default='logs', help='Path to the directory to save logs.')
-    parser.add_argument('-db', '--database_file', type=str, default='part_info.db', help='Path to the SQLite database file.')
-    parser.add_argument('--skip-purge', action='store_true', help='Skip purging the BrickLink store lots.')
-    args = parser.parse_args()
-
-    input_basename = os.path.splitext(os.path.basename(args.input_cart_file))[0]
+def process_cart_file(input_cart_file, log_dir, database_file, skip_purge, debug):
+    input_basename = os.path.splitext(os.path.basename(input_cart_file))[0]
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    logfile_name = os.path.join(args.log_dir, f'save_me_money_{input_basename}_{timestamp}.txt')
+    logfile_name = os.path.join(log_dir, f'save_me_money_{input_basename}_{timestamp}.txt')
 
-    logger = setup_logger(logfile_name)
+    logger = setup_logger(logfile_name, debug)
 
-    database = DatabaseManager(args.database_file, logger)
+    database = DatabaseManager(database_file, logger)
 
     # Don't actually process files if purge is requested
-    if not args.skip_purge:
+    if not skip_purge:
         database.purge_bricklink_store_lots()
         logging.info("Purged all BrickLink store lots")
 
     # Step 0 - Parse input BrickLink cart file
-    cart_lots = parse_cart(args.input_cart_file)
-    logging.info(f"Step 0 complete - Parsed {len(cart_lots)} lots from {args.input_cart_file}: {cart_lots}")
+    cart_lots = parse_cart(input_cart_file)
+    logging.info(f"Step 0 complete - Parsed {len(cart_lots)} lots from {input_cart_file}: {cart_lots}")
 
     # Step 1 - Find out which store and lot IDs need to be requested from BrickLink
     request_cart_lots = {(cart['store_id'], cart['lot_id']) for cart in cart_lots if not database.get_bricklink_cart_entry_by_store_and_lot_id(cart['store_id'], cart['lot_id'])}
@@ -183,26 +171,45 @@ def main():
     final_bricklink_partslist = []
     final_lego_lots = []
     for cart_lot in cart_lots:
+        # The code `price_compare` appears to be a function or variable name in Python. However,
+        # without seeing the actual implementation of the `price_compare` function or variable, it is
+        # not possible to determine exactly what it is doing. If you provide more context or the
+        # implementation of the `price_compare` function, I can help explain its functionality.
         price_compare = [row for row in database.compare_prices_for_lot(cart_lot['store_id'], cart_lot['lot_id']) if row[1] is not None]
         # print(f"Cart lot with store id {cart_lot['store_id']} and lot id {cart_lot['lot_id']} has price compare of size {len(price_compare)}: {price_compare}")
         price_compare_value = None
-        if len(price_compare) == 1:
-            price_compare_value = price_compare[0]
-            logger.info(f"Price compare value: {price_compare_value}")
-        elif len(price_compare) == 2:
-            print(f"Cart lot with store id {cart_lot['store_id']} and lot id {cart_lot['lot_id']} has two price compare values:")
-            for index, row in enumerate(price_compare):
-                print(index, row)
-            while True:
-                try:
-                    choice = int(input("Choose one (0 or 1): "))
-                    if choice in [0, 1]:
-                        break
-                except ValueError:
-                    pass
-            price_compare_value = price_compare[choice]
-        else:
+        if len(price_compare) == 0:
+            final_bricklink_lots.append(cart_lot)
+            (_, _, _, design_id, color_code, type) = database.get_bricklink_cart_entry_by_store_and_lot_id(cart_lot['store_id'], cart_lot['lot_id'])
+            merged = False
+            for part in final_bricklink_partslist:
+                if part['design_id'] == design_id and part['color_id'] == color_code:
+                    part['quantity'] = str(int(cart_lot['quantity']) + int(part['quantity']))
+                    logger.info(f"Adding design ID {design_id} and color code {color_code} and quantity {cart_lot['quantity']} to existing part in BrickLink partslist")
+                    merged = True
+                    break
+            if not merged:
+                final_bricklink_partslist.append({
+                    'design_id': design_id,
+                    'color_id': color_code,
+                    'quantity': cart_lot['quantity'],
+                    'type': type,
+                })
+                logger.info(f"Adding design ID {design_id} and color code {color_code} and quantity {cart_lot['quantity']} to new part in BrickLink partslist")
+            logger.info(f"Choosing BrickLink price, adding to BrickLink cart: {cart_lot}")
             continue
+        elif len(price_compare) == 1:
+            price_compare_value = price_compare[0]
+            logger.info(f"LEGO option for cart lot with store id {cart_lot['store_id']} and lot id {cart_lot['lot_id']}: {price_compare_value}")
+        elif len(price_compare) == 2:
+            logger.info(f"Two LEGO options for cart lot with store id {cart_lot['store_id']} and lot id {cart_lot['lot_id']}: {price_compare}")
+            if price_compare[0][1] <= price_compare[1][1]:
+                price_compare_value = price_compare[0]
+            else:
+                price_compare_value = price_compare[1]
+            logger.info(f"Choosing option: {price_compare_value}")
+        else:
+            raise AssertionError(f"More than two LEGO options for cart lot with store id {cart_lot['store_id']} and lot id {cart_lot['lot_id']}: {price_compare}")
         if price_compare_value[1] > price_compare_value[2]:
             final_bricklink_lots.append(cart_lot)
             (_, _, _, design_id, color_code, type) = database.get_bricklink_cart_entry_by_store_and_lot_id(cart_lot['store_id'], cart_lot['lot_id'])
@@ -241,7 +248,7 @@ def main():
     logger.info(f"Step 7 complete - Final LEGO lots (size {len(final_lego_lots)}): {final_lego_lots}")
     
     # Step 8 - Export final BrickLink cart file and LEGO Pick-A-Brick CSV file
-    basename = os.path.splitext(args.input_cart_file)[0]
+    basename = os.path.splitext(input_cart_file)[0]
     bricklink_output_file = f"{basename}_updated_bricklink_cart.cart"
     lego_output_file = f"{basename}_lego_cart.csv"
     bricklink_partslist_file = f"{basename}_bricklink_partslist.xml"
@@ -249,6 +256,23 @@ def main():
     export_csv(final_lego_lots, lego_output_file)
     export_xml(final_bricklink_partslist, bricklink_partslist_file, condition='N')
     logger.info(f"Step 8 complete")
+
+
+def main():
+    """
+    Parse command line arguments and run the main program.
+
+    Uses a new BrickLink store lot API to get the price of a lot.
+    """
+    parser = argparse.ArgumentParser(description='Reduce the cost of a BrickLink cart set by checking parts against LEGO Pick-a-Brick prices.')
+    parser.add_argument('input_cart_file', type=str, help='Path to the BrickLink cart file.')
+    parser.add_argument('-ld', '--log_dir', type=str, default='logs', help='Path to the directory to save logs.')
+    parser.add_argument('-db', '--database_file', type=str, default='part_info.db', help='Path to the SQLite database file.')
+    parser.add_argument('--skip-purge', action='store_true', help='Skip purging the BrickLink store lots.')
+    parser.add_argument('--debug', action='store_true', help='Enable debug logging.')
+    args = parser.parse_args()
+
+    process_cart_file(args.input_cart_file, args.log_dir, args.database_file, args.skip_purge, args.debug)
 
 
 if __name__ == '__main__':
