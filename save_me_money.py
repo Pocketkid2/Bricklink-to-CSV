@@ -10,7 +10,6 @@ import time
 import logging
 import argparse
 from database import *
-import concurrent.futures
 from parse import parse_cart
 from export import export_csv
 from export import export_xml
@@ -77,19 +76,18 @@ def process_cart_file(input_cart_file, log_dir, database_file, skip_purge, debug
     request_cart_lots = {(cart['store_id'], cart['lot_id']) for cart in cart_lots if not database.get_bricklink_cart_entry_by_store_and_lot_id(cart['store_id'], cart['lot_id'])}
     logging.info(f"Step 1 complete - Found {len(request_cart_lots)} new lots to request from BrickLink")
     
-    # Step 2 - Make all the requests in parallel and insert the entries into the database
+    # Step 2 - Make all the requests sequentially and insert the entries into the database
     start_time = time.time()
     database_insertions = 0
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        future_to_design_id = {executor.submit(get_part_and_price_for_lot, store_id, lot_id): (store_id, lot_id) for store_id, lot_id in request_cart_lots}
-        for future in concurrent.futures.as_completed(future_to_design_id):
-            store_id, lot_id = future_to_design_id[future]
-            try:
-                design_id, color_code, price, type = future.result()
-                database.insert_bricklink_cart_entry(store_id, lot_id, price, design_id, color_code, type)
-                database_insertions += 1
-            except Exception as e:
-                logging.error(f"Exception raised for {store_id}, {lot_id}: {e}")
+    total_lots = len(request_cart_lots)
+    for i, (store_id, lot_id) in enumerate(request_cart_lots, 1):
+        logging.info(f"Lot {i}/{total_lots}")
+        try:
+            design_id, color_code, price, type = get_part_and_price_for_lot(store_id, lot_id)
+            database.insert_bricklink_cart_entry(store_id, lot_id, price, design_id, color_code, type)
+            database_insertions += 1
+        except Exception as e:
+            logging.error(f"Exception raised for {store_id}, {lot_id}: {e}")
     database.commit_changes()
     end_time = time.time()
     elapsed_time = end_time - start_time
@@ -107,21 +105,20 @@ def process_cart_file(input_cart_file, log_dir, database_file, skip_purge, debug
                 request_design_ids.add(design_id)
     logging.info(f"Step 3 complete - request design IDs (length {len(request_design_ids)}): {request_design_ids}")
     
-    # Step 4 - Make all the requests in parallel and insert the entries into the database
+    # Step 4 - Make all the requests sequentially and insert the entries into the database
     start_time = time.time()
     database_insertions = 0
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        future_to_design_id = {executor.submit(get_color_dict_for_part, design_id): design_id for design_id in request_design_ids}
-        for future in concurrent.futures.as_completed(future_to_design_id):
-            design_id = future_to_design_id[future]
-            try:
-                data = future.result()
-                for color_code, element_id_list in data.items():
-                    for element_id in element_id_list:
-                        database.insert_bricklink_entry(element_id, design_id, color_code)
-                        database_insertions += 1
-            except Exception as exc:
-                logging.error(f"Step 3 - Design ID {design_id} generated an exception: {exc}")
+    total_designs = len(request_design_ids)
+    for i, design_id in enumerate(request_design_ids, 1):
+        logging.info(f"Design {i}/{total_designs}")
+        try:
+            data = get_color_dict_for_part(design_id)
+            for color_code, element_id_list in data.items():
+                for element_id in element_id_list:
+                    database.insert_bricklink_entry(element_id, design_id, color_code)
+                    database_insertions += 1
+        except Exception as exc:
+            logging.error(f"Step 3 - Design ID {design_id} generated an exception: {exc}")
     database.commit_changes()
     end_time = time.time()
     elapsed_time = end_time - start_time
@@ -137,29 +134,28 @@ def process_cart_file(input_cart_file, log_dir, database_file, skip_purge, debug
     logging.info(f"Step 5 complete - Master element IDs (length {len(master_element_ids)}): {master_element_ids}")
     logging.info(f"Step 5 complete - Request element IDs (length {len(request_element_ids)}): {request_element_ids}")
     
-    # Step 6 - Make all the requests in parallel and insert the entries into the database
+    # Step 6 - Make all the requests sequentially and insert the entries into the database
     start_time = time.time()
     database_insertions = 0
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        future_to_element_id = {executor.submit(get_lego_store_result_for_element_id, element_id): element_id for element_id in request_element_ids}
-        for future in concurrent.futures.as_completed(future_to_element_id):
-            element_id = future_to_element_id[future]
-            try:
-                data = future.result()
-                if data is None:
-                    database.insert_lego_store_entry(element_id, lego_sells=False, bestseller=None, price=None, max_order_quantity=None)
-                    database_insertions += 1
-                else:
-                    if data['deliveryChannel'] not in ['pab', 'bap']:
-                        raise ValueError(f"Invalid delivery channel: {data['deliveryChannel']}")
-                    database.insert_lego_store_entry(element_id,
-                                                     lego_sells=True,
-                                                     bestseller=(data['deliveryChannel'] == 'pab'),
-                                                     price=data['price']['formattedAmount'],
-                                                     max_order_quantity=data['maxOrderQuantity'])
-                    database_insertions += 1
-            except Exception as exc:
-                logging.error(f"Step 6 - Element ID {element_id} generated an exception: {exc}")
+    total_elements = len(request_element_ids)
+    for i, element_id in enumerate(request_element_ids, 1):
+        logging.info(f"Element {i}/{total_elements}")
+        try:
+            data = get_lego_store_result_for_element_id(element_id)
+            if data is None:
+                database.insert_lego_store_entry(element_id, lego_sells=False, bestseller=None, price=None, max_order_quantity=None)
+                database_insertions += 1
+            else:
+                if data['deliveryChannel'] not in ['pab', 'bap']:
+                    raise ValueError(f"Invalid delivery channel: {data['deliveryChannel']}")
+                database.insert_lego_store_entry(element_id,
+                                                 lego_sells=True,
+                                                 bestseller=(data['deliveryChannel'] == 'pab'),
+                                                 price=data['price']['formattedAmount'],
+                                                 max_order_quantity=data['maxOrderQuantity'])
+                database_insertions += 1
+        except Exception as exc:
+            logging.error(f"Step 6 - Element ID {element_id} generated an exception: {exc}")
     database.commit_changes()
     end_time = time.time()
     elapsed_time = end_time - start_time

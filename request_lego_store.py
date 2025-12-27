@@ -6,7 +6,7 @@ and obtaining Pick-A-Brick store results for a part number (Element ID).
 
 import sys
 import logging
-import requests
+from curl_cffi import requests
 
 QUERY = '''
 query PickABrickQuery($input: ElementQueryInput!) {
@@ -46,8 +46,10 @@ def get_lego_store_result_for_element_id(element_id):
         "variables": {"input": {"perPage": 10, "query": str(element_id)}},
         "query": QUERY
     }
-    headers = {}
-
+    headers = {
+        "Referer": f"https://www.lego.com/en-us/pick-and-build/pick-a-brick?query={str(element_id)}",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+    }
     response = requests.post(url, json=json_body, headers=headers)
     response.raise_for_status()  # Raise an exception for HTTP errors
     response_json = response.json()
